@@ -1,16 +1,61 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Filter } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { materials, sites, formatINR } from "@/data/sampleData";
+import { materials as initialMaterials, sites, formatINR, Material } from "@/data/sampleData";
 import { Link } from "react-router-dom";
+
+function getStatusForQuantity(qty: number, unit: string): Material["status"] {
+  // Thresholds vary by unit type
+  if (unit === "brass" || unit === "tonnes") return qty <= 3 ? "Critical" : qty <= 8 ? "Low" : "Sufficient";
+  if (unit === "sheets" || unit === "pieces" && qty < 100) return qty <= 10 ? "Critical" : qty <= 30 ? "Low" : "Sufficient";
+  if (unit === "bags") return qty <= 50 ? "Critical" : qty <= 100 ? "Low" : "Sufficient";
+  if (unit === "kg") return qty <= 500 ? "Critical" : qty <= 1000 ? "Low" : "Sufficient";
+  if (unit === "meters") return qty <= 100 ? "Critical" : qty <= 300 ? "Low" : "Sufficient";
+  return qty <= 20 ? "Critical" : qty <= 50 ? "Low" : "Sufficient";
+}
 
 export default function MaterialsPage() {
   const [siteFilter, setSiteFilter] = useState("all");
-  
-  const filtered = siteFilter === "all" ? materials : materials.filter(m => m.site === siteFilter);
+  const [inventory, setInventory] = useState<Material[]>(initialMaterials);
+
+  // Pick up deliveries saved from NewDeliveryPage
+  useEffect(() => {
+    const raw = sessionStorage.getItem("sitesync_deliveries");
+    if (!raw) return;
+    const deliveries = JSON.parse(raw) as { material: string; quantity: number; unit: string; rate: number; supplier: string; site: string }[];
+    if (deliveries.length === 0) return;
+
+    setInventory((prev) => {
+      let updated = [...prev];
+      for (const d of deliveries) {
+        const idx = updated.findIndex((m) => m.name.toLowerCase() === d.material.toLowerCase());
+        if (idx > -1) {
+          const newQty = updated[idx].quantity + d.quantity;
+          updated[idx] = { ...updated[idx], quantity: newQty, status: getStatusForQuantity(newQty, updated[idx].unit) };
+        } else {
+          const newQty = d.quantity;
+          const unit = d.unit || "pieces";
+          updated.push({
+            id: `m-${Date.now()}-${Math.random()}`,
+            name: d.material,
+            supplier: d.supplier || "—",
+            quantity: newQty,
+            unit,
+            rate: d.rate || 0,
+            status: getStatusForQuantity(newQty, unit),
+            site: d.site || "site-a",
+          });
+        }
+      }
+      return updated;
+    });
+    sessionStorage.removeItem("sitesync_deliveries");
+  }, []);
+
+  const filtered = siteFilter === "all" ? inventory : inventory.filter(m => m.site === siteFilter);
 
   const statusClass = (status: string) => {
     switch (status) {

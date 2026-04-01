@@ -1,23 +1,51 @@
+import { useState } from "react";
 import { Plus, Star, Phone } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { suppliers, formatINR } from "@/data/sampleData";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { suppliers as initialSuppliers, formatINR, Supplier } from "@/data/sampleData";
+import { toast } from "sonner";
 
 export default function SuppliersPage() {
+  const [supplierList, setSupplierList] = useState<Supplier[]>(initialSuppliers);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", material: "", contact: "", location: "" });
+
+  const handleSave = () => {
+    if (!form.name || !form.material || !form.contact) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+    const newSupplier: Supplier = {
+      id: `sup-${Date.now()}`,
+      name: form.name,
+      material: form.material,
+      contact: form.contact,
+      totalBusiness: 0,
+      rating: 0,
+    };
+    setSupplierList((prev) => [...prev, newSupplier]);
+    setForm({ name: "", material: "", contact: "", location: "" });
+    setOpen(false);
+    toast.success(`${newSupplier.name} added successfully`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="page-header">Suppliers</h2>
-          <p className="text-sm text-muted-foreground">{suppliers.length} active suppliers</p>
+          <p className="text-sm text-muted-foreground">{supplierList.length} active suppliers</p>
         </div>
-        <Button size="sm">
+        <Button size="sm" onClick={() => setOpen(true)}>
           <Plus className="w-4 h-4 mr-1" /> Add Supplier
         </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {suppliers.map((sup) => (
+        {supplierList.map((sup) => (
           <Card key={sup.id} className="p-4">
             <div className="flex items-start justify-between">
               <div>
@@ -65,6 +93,35 @@ export default function SuppliersPage() {
           </div>
         </div>
       </Card>
+
+      {/* Add Supplier Modal */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Supplier</DialogTitle>
+            <DialogDescription>Enter supplier details below</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-1.5">
+              <Label>Supplier Name *</Label>
+              <Input placeholder="e.g., Nashik Cement Agency" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Material Supplied *</Label>
+              <Input placeholder="e.g., Cement" value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Contact Number *</Label>
+              <Input placeholder="e.g., 9823456789" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Location</Label>
+              <Input placeholder="e.g., Nashik" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+            </div>
+            <Button className="w-full" onClick={handleSave}>Save Supplier</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

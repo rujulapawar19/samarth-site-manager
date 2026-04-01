@@ -2,14 +2,7 @@ import { Link } from "react-router-dom";
 import { Users, Clock, Package, IndianRupee, CalendarCheck, Truck, FileText, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { recentActivity, formatINR } from "@/data/sampleData";
-
-const stats = [
-  { label: "Total Workers Today", value: "187", icon: Users, change: "+5 from yesterday" },
-  { label: "Pending Payments", value: "₹2,41,550", icon: Clock, change: "This week" },
-  { label: "Materials Low Stock", value: "4", icon: Package, change: "2 critical" },
-  { label: "Total Spent This Month", value: "₹18.4L", icon: IndianRupee, change: "vs ₹16.2L budget" },
-];
+import { recentActivity, dailyWorkers, monthlyStaff, materials, invoices, formatINR, formatINRLakhs } from "@/data/sampleData";
 
 const activityIcons = {
   attendance: CalendarCheck,
@@ -19,6 +12,19 @@ const activityIcons = {
 };
 
 export default function DashboardPage() {
+  const totalWorkers = dailyWorkers.length + monthlyStaff.length;
+  const pendingPayments = dailyWorkers.filter(w => w.status === "Pending").reduce((a, w) => a + w.amountDue, 0)
+    + monthlyStaff.filter(s => s.status === "Pending").reduce((a, s) => a + s.monthlySalary, 0);
+  const lowStockCount = materials.filter(m => m.status === "Low" || m.status === "Critical").length;
+  const totalSpent = invoices.reduce((a, inv) => a + inv.amount, 0);
+
+  const stats = [
+    { label: "Total Workers Today", value: String(totalWorkers), icon: Users, change: `${dailyWorkers.length} daily + ${monthlyStaff.length} staff` },
+    { label: "Pending Payments", value: formatINR(pendingPayments), icon: Clock, change: "This week" },
+    { label: "Materials Low Stock", value: String(lowStockCount), icon: Package, change: `${materials.filter(m => m.status === "Critical").length} critical` },
+    { label: "Total Spent This Month", value: formatINRLakhs(totalSpent), icon: IndianRupee, change: "vs ₹16.2L budget" },
+  ];
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>

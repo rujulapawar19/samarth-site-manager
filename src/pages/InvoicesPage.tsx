@@ -1,20 +1,47 @@
 import { useState } from "react";
-import { Plus, Filter } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { invoices, sites, formatINR } from "@/data/sampleData";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { invoices as initialInvoices, sites, suppliers, formatINR, Invoice } from "@/data/sampleData";
+import { toast } from "sonner";
 
 export default function InvoicesPage() {
+  const [invoiceList, setInvoiceList] = useState<Invoice[]>(initialInvoices);
   const [statusFilter, setStatusFilter] = useState("all");
   const [siteFilter, setSiteFilter] = useState("all");
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ supplier: "", description: "", amount: "", site: "", status: "Pending" as "Paid" | "Pending" });
 
-  const filtered = invoices
+  const filtered = invoiceList
     .filter(i => statusFilter === "all" || i.status === statusFilter)
     .filter(i => siteFilter === "all" || i.site === siteFilter);
 
-  const totalPending = invoices.filter(i => i.status === "Pending").reduce((s, i) => s + i.amount, 0);
+  const totalPending = invoiceList.filter(i => i.status === "Pending").reduce((s, i) => s + i.amount, 0);
+
+  const handleSave = () => {
+    if (!form.supplier || !form.description || !form.amount || !form.site) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+    const newInvoice: Invoice = {
+      id: `inv${Date.now()}`,
+      supplier: form.supplier,
+      description: form.description,
+      amount: Number(form.amount),
+      site: form.site,
+      status: form.status,
+      date: new Date().toISOString().split("T")[0],
+    };
+    setInvoiceList(prev => [newInvoice, ...prev]);
+    setOpen(false);
+    setForm({ supplier: "", description: "", amount: "", site: "", status: "Pending" });
+    toast.success("Invoice generated successfully");
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -23,18 +50,16 @@ export default function InvoicesPage() {
           <h2 className="page-header">Invoices</h2>
           <p className="text-sm text-muted-foreground">{filtered.length} invoices</p>
         </div>
-        <Button size="sm">
+        <Button size="sm" onClick={() => setOpen(true)}>
           <Plus className="w-4 h-4 mr-1" /> Generate Invoice
         </Button>
       </div>
 
-      {/* Total Pending */}
       <Card className="p-4 bg-accent/10 border-accent/30">
         <p className="text-sm text-muted-foreground">Total Pending Amount</p>
         <p className="text-2xl font-bold text-foreground">{formatINR(totalPending)}</p>
       </Card>
 
-      {/* Filters */}
       <div className="flex gap-2">
         <Select value={siteFilter} onValueChange={setSiteFilter}>
           <SelectTrigger className="w-40 h-9">
@@ -89,6 +114,59 @@ export default function InvoicesPage() {
           </table>
         </div>
       </Card>
+
+      {/* Generate Invoice Modal */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Generate Invoice</DialogTitle>
+            <DialogDescription>Create a new supplier invoice entry.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Supplier *</Label>
+              <Select value={form.supplier} onValueChange={v => setForm(f => ({ ...f, supplier: v }))}>
+                <SelectTrigger><SelectValue placeholder="Select supplier" /></SelectTrigger>
+                <SelectContent>
+                  {suppliers.map(s => (
+                    <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Description *</Label>
+              <Input placeholder="e.g. 200 bags OPC Cement" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Amount (₹) *</Label>
+              <Input type="number" placeholder="0" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Site *</Label>
+              <Select value={form.site} onValueChange={v => setForm(f => ({ ...f, site: v }))}>
+                <SelectTrigger><SelectValue placeholder="Select site" /></SelectTrigger>
+                <SelectContent>
+                  {sites.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.shortName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v as "Paid" | "Pending" }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                  <SelectItem value="Paid">Paid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button className="w-full" onClick={handleSave}>Save Invoice</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

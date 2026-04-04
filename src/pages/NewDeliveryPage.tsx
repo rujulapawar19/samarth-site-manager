@@ -12,6 +12,7 @@ import { useActivity } from "@/context/ActivityContext";
 
 export default function NewDeliveryPage() {
   const navigate = useNavigate();
+  const { addActivity } = useActivity();
   const [form, setForm] = useState({
     supplier: "",
     material: "",

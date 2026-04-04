@@ -3,6 +3,7 @@ import { Check, X, QrCode } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { dailyWorkers, formatINR } from "@/data/sampleData";
+import { useActivity } from "@/context/ActivityContext";
 
 interface AttendanceRecord {
   workerId: string;
@@ -11,6 +12,7 @@ interface AttendanceRecord {
 }
 
 export default function AttendancePage() {
+  const { addActivity } = useActivity();
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(
     dailyWorkers.map((w, i) => ({
       workerId: w.id,
@@ -20,13 +22,20 @@ export default function AttendancePage() {
   );
 
   const toggle = (id: string) => {
+    const worker = dailyWorkers.find(w => w.id === id);
+    const record = attendance.find(a => a.workerId === id);
+    const willBePresent = !record?.present;
     setAttendance(prev =>
       prev.map(a =>
         a.workerId === id
-          ? { ...a, present: !a.present, time: !a.present ? new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : null }
+          ? { ...a, present: willBePresent, time: willBePresent ? new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : null }
           : a
       )
     );
+    if (willBePresent && worker) {
+      const site = worker.site === "site-a" ? "Tower A" : worker.site === "site-b" ? "Tower B" : "Commerce Park";
+      addActivity({ text: `${worker.name} marked present at ${site}`, icon: "attendance" });
+    }
   };
 
   const markAll = () => {

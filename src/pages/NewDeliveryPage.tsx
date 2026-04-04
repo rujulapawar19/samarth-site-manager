@@ -8,9 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { sites } from "@/data/sampleData";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useActivity } from "@/context/ActivityContext";
 
 export default function NewDeliveryPage() {
   const navigate = useNavigate();
+  const { addActivity } = useActivity();
   const [form, setForm] = useState({
     supplier: "",
     material: "",
@@ -54,6 +56,7 @@ export default function NewDeliveryPage() {
     });
     sessionStorage.setItem("sitesync_deliveries", JSON.stringify(deliveries));
     toast.success("Delivery saved — inventory updated");
+    addActivity({ text: `${form.quantity} ${form.unit} ${form.material} delivered${form.supplier ? ` by ${form.supplier}` : ""}`, icon: "delivery" });
     navigate("/materials");
   };
 

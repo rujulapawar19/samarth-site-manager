@@ -11,9 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { dailyWorkers as initialDailyWorkers, monthlyStaff as initialMonthlyStaff, sites, formatINR, type DailyWorker, type MonthlyStaff } from "@/data/sampleData";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useActivity } from "@/context/ActivityContext";
 
 export default function LaborPage() {
   const navigate = useNavigate();
+  const { addActivity } = useActivity();
   const [workers, setWorkers] = useState<DailyWorker[]>([...initialDailyWorkers]);
   const [staff, setStaff] = useState<MonthlyStaff[]>([...initialMonthlyStaff]);
   const [showPayday, setShowPayday] = useState(false);
@@ -27,8 +29,12 @@ export default function LaborPage() {
   const totalPending = workers.filter(w => w.status === "Pending").reduce((s, w) => s + w.amountDue, 0);
 
   const markPaid = (id: string) => {
+    const worker = workers.find(w => w.id === id);
     setWorkers(prev => prev.map(w => w.id === id ? { ...w, status: "Paid" as const } : w));
     toast.success("Marked as paid");
+    if (worker) {
+      addActivity({ text: `${worker.name} marked paid — ${formatINR(worker.amountDue)}`, icon: "payment" });
+    }
   };
 
   const addWorker = () => {
@@ -52,6 +58,7 @@ export default function LaborPage() {
       setStaff(prev => [newStaff, ...prev]);
     }
     toast.success(`${form.name} added as ${form.wageType} worker`);
+    addActivity({ text: `New ${form.wageType} worker added — ${form.name} (${form.role})`, icon: "attendance" });
     setForm({ name: "", role: "", wageType: "daily", wageRate: "", phone: "", site: "" });
     setShowAddWorker(false);
   };

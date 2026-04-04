@@ -2,7 +2,8 @@ import { Link } from "react-router-dom";
 import { Users, Clock, Package, IndianRupee, CalendarCheck, Truck, FileText, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { recentActivity, dailyWorkers, monthlyStaff, materials, invoices, formatINR, formatINRLakhs } from "@/data/sampleData";
+import { dailyWorkers, monthlyStaff, materials, invoices, formatINR, formatINRLakhs } from "@/data/sampleData";
+import { useActivity } from "@/context/ActivityContext";
 
 const activityIcons = {
   attendance: CalendarCheck,
@@ -12,6 +13,7 @@ const activityIcons = {
 };
 
 export default function DashboardPage() {
+  const { activities } = useActivity();
   const totalWorkers = dailyWorkers.length + monthlyStaff.length;
   const pendingPayments = dailyWorkers.filter(w => w.status === "Pending").reduce((a, w) => a + w.amountDue, 0)
     + monthlyStaff.filter(s => s.status === "Pending").reduce((a, s) => a + s.monthlySalary, 0);
@@ -83,7 +85,7 @@ export default function DashboardPage() {
       <Card className="p-5">
         <h3 className="font-semibold text-foreground mb-4">Recent Activity</h3>
         <div className="space-y-3">
-          {recentActivity.map((item, i) => {
+          {activities.slice(0, 10).map((item, i) => {
             const Icon = activityIcons[item.icon];
             return (
               <div key={i} className="flex items-start gap-3 text-sm">

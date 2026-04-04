@@ -85,7 +85,7 @@ export default function DashboardPage() {
       <Card className="p-5">
         <h3 className="font-semibold text-foreground mb-4">Recent Activity</h3>
         <div className="space-y-3">
-          {recentActivity.map((item, i) => {
+          {activities.slice(0, 10).map((item, i) => {
             const Icon = activityIcons[item.icon];
             return (
               <div key={i} className="flex items-start gap-3 text-sm">

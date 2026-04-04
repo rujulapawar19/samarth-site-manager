@@ -58,6 +58,7 @@ export default function LaborPage() {
       setStaff(prev => [newStaff, ...prev]);
     }
     toast.success(`${form.name} added as ${form.wageType} worker`);
+    addActivity({ text: `New ${form.wageType} worker added — ${form.name} (${form.role})`, icon: "attendance" });
     setForm({ name: "", role: "", wageType: "daily", wageRate: "", phone: "", site: "" });
     setShowAddWorker(false);
   };

@@ -56,6 +56,7 @@ export default function NewDeliveryPage() {
     });
     sessionStorage.setItem("sitesync_deliveries", JSON.stringify(deliveries));
     toast.success("Delivery saved — inventory updated");
+    addActivity({ text: `${form.quantity} ${form.unit} ${form.material} delivered${form.supplier ? ` by ${form.supplier}` : ""}`, icon: "delivery" });
     navigate("/materials");
   };
 

@@ -2,7 +2,8 @@ import { Link } from "react-router-dom";
 import { Users, Clock, Package, IndianRupee, CalendarCheck, Truck, FileText, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { recentActivity, dailyWorkers, monthlyStaff, materials, invoices, formatINR, formatINRLakhs } from "@/data/sampleData";
+import { dailyWorkers, monthlyStaff, materials, invoices, formatINR, formatINRLakhs } from "@/data/sampleData";
+import { useActivity } from "@/context/ActivityContext";
 
 const activityIcons = {
   attendance: CalendarCheck,

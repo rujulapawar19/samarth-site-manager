@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { dailyWorkers as initialDailyWorkers, monthlyStaff as initialMonthlyStaff, sites, formatINR, type DailyWorker, type MonthlyStaff } from "@/data/sampleData";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useActivity } from "@/context/ActivityContext";
 
 export default function LaborPage() {
   const navigate = useNavigate();

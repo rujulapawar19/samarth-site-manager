@@ -12,6 +12,7 @@ interface AttendanceRecord {
 }
 
 export default function AttendancePage() {
+  const { addActivity } = useActivity();
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(
     dailyWorkers.map((w, i) => ({
       workerId: w.id,

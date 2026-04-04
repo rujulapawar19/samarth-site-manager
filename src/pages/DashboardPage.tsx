@@ -13,6 +13,7 @@ const activityIcons = {
 };
 
 export default function DashboardPage() {
+  const { activities } = useActivity();
   const totalWorkers = dailyWorkers.length + monthlyStaff.length;
   const pendingPayments = dailyWorkers.filter(w => w.status === "Pending").reduce((a, w) => a + w.amountDue, 0)
     + monthlyStaff.filter(s => s.status === "Pending").reduce((a, s) => a + s.monthlySalary, 0);

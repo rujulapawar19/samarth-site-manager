@@ -29,8 +29,12 @@ export default function LaborPage() {
   const totalPending = workers.filter(w => w.status === "Pending").reduce((s, w) => s + w.amountDue, 0);
 
   const markPaid = (id: string) => {
+    const worker = workers.find(w => w.id === id);
     setWorkers(prev => prev.map(w => w.id === id ? { ...w, status: "Paid" as const } : w));
     toast.success("Marked as paid");
+    if (worker) {
+      addActivity({ text: `${worker.name} marked paid — ${formatINR(worker.amountDue)}`, icon: "payment" });
+    }
   };
 
   const addWorker = () => {

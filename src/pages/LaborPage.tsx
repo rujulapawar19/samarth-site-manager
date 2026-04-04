@@ -15,6 +15,7 @@ import { useActivity } from "@/context/ActivityContext";
 
 export default function LaborPage() {
   const navigate = useNavigate();
+  const { addActivity } = useActivity();
   const [workers, setWorkers] = useState<DailyWorker[]>([...initialDailyWorkers]);
   const [staff, setStaff] = useState<MonthlyStaff[]>([...initialMonthlyStaff]);
   const [showPayday, setShowPayday] = useState(false);

@@ -3,6 +3,7 @@ import { Check, X, QrCode } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { dailyWorkers, formatINR } from "@/data/sampleData";
+import { useActivity } from "@/context/ActivityContext";
 
 interface AttendanceRecord {
   workerId: string;

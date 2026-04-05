@@ -16,6 +16,7 @@ import FinancePage from "./pages/FinancePage";
 import AlertsPage from "./pages/AlertsPage";
 import NotFound from "./pages/NotFound";
 import { ActivityProvider } from "./context/ActivityContext";
+import { SiteProvider } from "./context/SiteContext";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +25,7 @@ const App = () => (
     <TooltipProvider>
       <Sonner />
       <BrowserRouter>
+        <SiteProvider>
         <ActivityProvider>
         <Routes>
           <Route path="/" element={<LoginPage />} />

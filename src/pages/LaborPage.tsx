@@ -8,25 +8,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { dailyWorkers as initialDailyWorkers, monthlyStaff as initialMonthlyStaff, sites, formatINR, type DailyWorker, type MonthlyStaff } from "@/data/sampleData";
+import { dailyWorkers as initialDailyWorkers, monthlyStaff as initialMonthlyStaff, formatINR, type DailyWorker, type MonthlyStaff } from "@/data/sampleData";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useActivity } from "@/context/ActivityContext";
+import { useSites } from "@/context/SiteContext";
+import SiteFilter from "@/components/SiteFilter";
 
 export default function LaborPage() {
   const navigate = useNavigate();
   const { addActivity } = useActivity();
+  const { sites } = useSites();
   const [workers, setWorkers] = useState<DailyWorker[]>([...initialDailyWorkers]);
   const [staff, setStaff] = useState<MonthlyStaff[]>([...initialMonthlyStaff]);
   const [showPayday, setShowPayday] = useState(false);
   const [showAddWorker, setShowAddWorker] = useState(false);
+  const [siteFilter, setSiteFilter] = useState("all");
 
-  // Add worker form state
   const [form, setForm] = useState({
     name: "", role: "", wageType: "daily" as "daily" | "monthly", wageRate: "", phone: "", site: "",
   });
 
-  const totalPending = workers.filter(w => w.status === "Pending").reduce((s, w) => s + w.amountDue, 0);
+  const filteredWorkers = siteFilter === "all" ? workers : workers.filter(w => w.site === siteFilter);
+  const filteredStaff = siteFilter === "all" ? staff : staff.filter(s => s.site === siteFilter);
+  const totalPending = filteredWorkers.filter(w => w.status === "Pending").reduce((s, w) => s + w.amountDue, 0);
 
   const markPaid = (id: string) => {
     const worker = workers.find(w => w.id === id);
@@ -65,13 +70,13 @@ export default function LaborPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="page-header">Labor Management</h2>
           <p className="text-sm text-muted-foreground">Manage daily and monthly workers</p>
         </div>
-        <div className="flex gap-2">
-          {/* Add Worker Dialog */}
+        <div className="flex gap-2 flex-wrap">
+          <SiteFilter value={siteFilter} onChange={setSiteFilter} />
           <Dialog open={showAddWorker} onOpenChange={setShowAddWorker}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
@@ -128,7 +133,6 @@ export default function LaborPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Run Payday Dialog */}
           <Dialog open={showPayday} onOpenChange={setShowPayday}>
             <DialogTrigger asChild>
               <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
@@ -145,8 +149,8 @@ export default function LaborPage() {
                   <p className="text-sm text-muted-foreground">Total cash required this Friday</p>
                 </div>
                 <div className="text-sm text-muted-foreground space-y-1">
-                  <p>{workers.filter(w => w.status === "Pending").length} workers with pending payments</p>
-                  <p>{workers.filter(w => w.status === "Paid").length} workers already paid</p>
+                  <p>{filteredWorkers.filter(w => w.status === "Pending").length} workers with pending payments</p>
+                  <p>{filteredWorkers.filter(w => w.status === "Paid").length} workers already paid</p>
                 </div>
                 <Button className="w-full" onClick={() => { setShowPayday(false); navigate("/payday"); }}>
                   Proceed to Payday
@@ -159,8 +163,8 @@ export default function LaborPage() {
 
       <Tabs defaultValue="daily">
         <TabsList>
-          <TabsTrigger value="daily">Daily Workers ({workers.length})</TabsTrigger>
-          <TabsTrigger value="monthly">Monthly Staff ({staff.length})</TabsTrigger>
+          <TabsTrigger value="daily">Daily Workers ({filteredWorkers.length})</TabsTrigger>
+          <TabsTrigger value="monthly">Monthly Staff ({filteredStaff.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="daily">
           <Card className="overflow-hidden">
@@ -178,7 +182,7 @@ export default function LaborPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {workers.map((w) => (
+                  {filteredWorkers.map((w) => (
                     <tr key={w.id} className="border-b last:border-0 hover:bg-muted/30">
                       <td className="p-3 font-medium text-foreground">{w.name}</td>
                       <td className="p-3 text-muted-foreground">{w.role}</td>
@@ -217,7 +221,7 @@ export default function LaborPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {staff.map((s) => (
+                  {filteredStaff.map((s) => (
                     <tr key={s.id} className="border-b last:border-0 hover:bg-muted/30">
                       <td className="p-3 font-medium text-foreground">{s.name}</td>
                       <td className="p-3 text-muted-foreground">{s.designation}</td>

@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
-import { Plus, Filter } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { materials as initialMaterials, sites, formatINR, Material } from "@/data/sampleData";
+import { materials as initialMaterials, formatINR, Material } from "@/data/sampleData";
 import { Link } from "react-router-dom";
+import SiteFilter from "@/components/SiteFilter";
 
 function getStatusForQuantity(qty: number, unit: string): Material["status"] {
-  // Thresholds vary by unit type
   if (unit === "brass" || unit === "tonnes") return qty <= 3 ? "Critical" : qty <= 8 ? "Low" : "Sufficient";
   if (unit === "sheets" || unit === "pieces" && qty < 100) return qty <= 10 ? "Critical" : qty <= 30 ? "Low" : "Sufficient";
   if (unit === "bags") return qty <= 50 ? "Critical" : qty <= 100 ? "Low" : "Sufficient";
@@ -21,7 +20,6 @@ export default function MaterialsPage() {
   const [siteFilter, setSiteFilter] = useState("all");
   const [inventory, setInventory] = useState<Material[]>(initialMaterials);
 
-  // Pick up deliveries saved from NewDeliveryPage
   useEffect(() => {
     const raw = sessionStorage.getItem("sitesync_deliveries");
     if (!raw) return;
@@ -74,18 +72,7 @@ export default function MaterialsPage() {
           <p className="text-sm text-muted-foreground">{filtered.length} materials tracked</p>
         </div>
         <div className="flex gap-2">
-          <Select value={siteFilter} onValueChange={setSiteFilter}>
-            <SelectTrigger className="w-44 h-9">
-              <Filter className="w-3.5 h-3.5 mr-1" />
-              <SelectValue placeholder="Filter by Site" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sites</SelectItem>
-              {sites.map(s => (
-                <SelectItem key={s.id} value={s.id}>{s.shortName}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SiteFilter value={siteFilter} onChange={setSiteFilter} />
           <Link to="/new-delivery">
             <Button size="sm">
               <Plus className="w-4 h-4 mr-1" /> New Delivery

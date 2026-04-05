@@ -7,10 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { invoices as initialInvoices, sites, suppliers, formatINR, Invoice } from "@/data/sampleData";
+import { invoices as initialInvoices, suppliers, formatINR, Invoice } from "@/data/sampleData";
 import { toast } from "sonner";
+import { useSites } from "@/context/SiteContext";
+import SiteFilter from "@/components/SiteFilter";
 
 export default function InvoicesPage() {
+  const { sites } = useSites();
   const [invoiceList, setInvoiceList] = useState<Invoice[]>(initialInvoices);
   const [statusFilter, setStatusFilter] = useState("all");
   const [siteFilter, setSiteFilter] = useState("all");
@@ -61,17 +64,7 @@ export default function InvoicesPage() {
       </Card>
 
       <div className="flex gap-2">
-        <Select value={siteFilter} onValueChange={setSiteFilter}>
-          <SelectTrigger className="w-40 h-9">
-            <SelectValue placeholder="Site" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Sites</SelectItem>
-            {sites.map(s => (
-              <SelectItem key={s.id} value={s.id}>{s.shortName}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SiteFilter value={siteFilter} onChange={setSiteFilter} />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-32 h-9">
             <SelectValue placeholder="Status" />
@@ -115,7 +108,6 @@ export default function InvoicesPage() {
         </div>
       </Card>
 
-      {/* Generate Invoice Modal */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>

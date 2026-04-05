@@ -4,6 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { dailyWorkers, formatINR } from "@/data/sampleData";
 import { useActivity } from "@/context/ActivityContext";
+import { useSites } from "@/context/SiteContext";
+import SiteFilter from "@/components/SiteFilter";
 
 interface AttendanceRecord {
   workerId: string;
@@ -13,13 +15,17 @@ interface AttendanceRecord {
 
 export default function AttendancePage() {
   const { addActivity } = useActivity();
+  const { sites } = useSites();
+  const [siteFilter, setSiteFilter] = useState("all");
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(
     dailyWorkers.map((w, i) => ({
       workerId: w.id,
-      present: i < 8, // first 8 already marked
+      present: i < 8,
       time: i < 8 ? `${7 + Math.floor(i / 3)}:${(15 + i * 7) % 60 < 10 ? "0" : ""}${(15 + i * 7) % 60} AM` : null,
     }))
   );
+
+  const filteredWorkers = siteFilter === "all" ? dailyWorkers : dailyWorkers.filter(w => w.site === siteFilter);
 
   const toggle = (id: string) => {
     const worker = dailyWorkers.find(w => w.id === id);
@@ -33,38 +39,39 @@ export default function AttendancePage() {
       )
     );
     if (willBePresent && worker) {
-      const site = worker.site === "site-a" ? "Tower A" : worker.site === "site-b" ? "Tower B" : "Commerce Park";
-      addActivity({ text: `${worker.name} marked present at ${site}`, icon: "attendance" });
+      const site = sites.find(s => s.id === worker.site);
+      addActivity({ text: `${worker.name} marked present at ${site?.shortName || worker.site}`, icon: "attendance" });
     }
   };
 
   const markAll = () => {
     const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-    setAttendance(prev => prev.map(a => ({ ...a, present: true, time: now })));
+    const workerIds = new Set(filteredWorkers.map(w => w.id));
+    setAttendance(prev => prev.map(a => workerIds.has(a.workerId) ? { ...a, present: true, time: now } : a));
   };
 
-  const presentCount = attendance.filter(a => a.present).length;
-  const totalWage = attendance
-    .filter(a => a.present)
-    .reduce((sum, a) => {
-      const worker = dailyWorkers.find(w => w.id === a.workerId);
-      return sum + (worker?.dailyRate || 0);
-    }, 0);
+  const presentCount = filteredWorkers.filter(w => attendance.find(a => a.workerId === w.id)?.present).length;
+  const totalWage = filteredWorkers
+    .filter(w => attendance.find(a => a.workerId === w.id)?.present)
+    .reduce((sum, w) => sum + w.dailyRate, 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="page-header">Attendance</h2>
           <p className="text-sm text-muted-foreground">Monday, 31 March 2026</p>
         </div>
-        <Button onClick={markAll} className="bg-primary">
-          <Check className="w-4 h-4 mr-1" /> Mark All Present
-        </Button>
+        <div className="flex gap-2">
+          <SiteFilter value={siteFilter} onChange={setSiteFilter} />
+          <Button onClick={markAll} className="bg-primary">
+            <Check className="w-4 h-4 mr-1" /> Mark All Present
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {dailyWorkers.map((worker) => {
+        {filteredWorkers.map((worker) => {
           const record = attendance.find(a => a.workerId === worker.id)!;
           return (
             <Card
@@ -100,12 +107,11 @@ export default function AttendancePage() {
         })}
       </div>
 
-      {/* Daily Total */}
       <Card className="p-4 bg-primary/5 border-primary/20">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-foreground">{presentCount} workers present today</p>
-            <p className="text-xs text-muted-foreground">out of {dailyWorkers.length} daily workers</p>
+            <p className="text-xs text-muted-foreground">out of {filteredWorkers.length} daily workers</p>
           </div>
           <div className="text-right">
             <p className="text-lg font-bold text-foreground">{formatINR(totalWage)}</p>

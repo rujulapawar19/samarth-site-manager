@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 import { financeData, formatINR } from "@/data/sampleData";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import SiteFilter from "@/components/SiteFilter";
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload?.length) {
@@ -17,18 +19,28 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+const siteNameMap: Record<string, string> = { "site-a": "Tower A", "site-b": "Tower B", "site-c": "Commerce Park" };
+
 export default function FinancePage() {
-  const totalBudget = financeData.budgets.reduce((s, b) => s + b.budget, 0);
-  const totalActual = financeData.budgets.reduce((s, b) => s + b.actual, 0);
+  const [siteFilter, setSiteFilter] = useState("all");
+
+  const filteredBudgets = siteFilter === "all"
+    ? financeData.budgets
+    : financeData.budgets.filter(b => b.site === siteNameMap[siteFilter]);
+
+  const totalBudget = filteredBudgets.reduce((s, b) => s + b.budget, 0);
+  const totalActual = filteredBudgets.reduce((s, b) => s + b.actual, 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h2 className="page-header">Finance Dashboard</h2>
-        <p className="text-sm text-muted-foreground">March 2026 Overview</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="page-header">Finance Dashboard</h2>
+          <p className="text-sm text-muted-foreground">March 2026 Overview</p>
+        </div>
+        <SiteFilter value={siteFilter} onChange={setSiteFilter} />
       </div>
 
-      {/* Budget Forecast */}
       <Card className="p-4 bg-accent/10 border-accent/30 flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-accent shrink-0 mt-0.5" />
         <div>
@@ -39,12 +51,11 @@ export default function FinancePage() {
         </div>
       </Card>
 
-      {/* Budget vs Actual */}
       <Card className="p-5">
         <h3 className="font-semibold text-foreground mb-4">Budget vs Actual — By Site</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={financeData.budgets} barGap={4}>
+            <BarChart data={filteredBudgets} barGap={4}>
               <XAxis dataKey="site" tick={{ fontSize: 12 }} />
               <YAxis tickFormatter={(v) => `₹${(v / 100000).toFixed(0)}L`} tick={{ fontSize: 11 }} />
               <Tooltip content={<CustomTooltip />} />
@@ -56,7 +67,6 @@ export default function FinancePage() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Weekly Payments */}
         <Card className="p-5">
           <h3 className="font-semibold text-foreground mb-4">Weekly Payments</h3>
           <div className="h-56">
@@ -72,7 +82,6 @@ export default function FinancePage() {
           </div>
         </Card>
 
-        {/* Expense Breakdown */}
         <Card className="p-5">
           <h3 className="font-semibold text-foreground mb-4">Monthly Expense Breakdown</h3>
           <div className="h-56">

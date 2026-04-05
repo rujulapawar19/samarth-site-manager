@@ -5,28 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { sites } from "@/data/sampleData";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useActivity } from "@/context/ActivityContext";
+import { useSites } from "@/context/SiteContext";
 
 export default function NewDeliveryPage() {
   const navigate = useNavigate();
   const { addActivity } = useActivity();
+  const { sites } = useSites();
   const [form, setForm] = useState({
-    supplier: "",
-    material: "",
-    quantity: "",
-    unit: "",
-    rate: "",
-    total: "",
-    site: "",
-    date: "2026-03-31",
+    supplier: "", material: "", quantity: "", unit: "", rate: "", total: "", site: "", date: "2026-03-31",
   });
 
   const update = (field: string, value: string) => {
     const next = { ...form, [field]: value };
-    // Auto-calculate total
     if (field === "quantity" || field === "rate") {
       const qty = field === "quantity" ? Number(value) : Number(next.quantity);
       const rate = field === "rate" ? Number(value) : Number(next.rate);
@@ -41,18 +34,11 @@ export default function NewDeliveryPage() {
       toast.error("Please fill Material, Quantity, and Unit");
       return;
     }
-    // Save delivery to sessionStorage so MaterialsPage can pick it up
     const deliveries = JSON.parse(sessionStorage.getItem("sitesync_deliveries") || "[]");
     deliveries.push({
-      id: `del-${Date.now()}`,
-      supplier: form.supplier,
-      material: form.material,
-      quantity: Number(form.quantity),
-      unit: form.unit,
-      rate: Number(form.rate),
-      total: Number(form.total),
-      site: form.site,
-      date: form.date,
+      id: `del-${Date.now()}`, supplier: form.supplier, material: form.material,
+      quantity: Number(form.quantity), unit: form.unit, rate: Number(form.rate),
+      total: Number(form.total), site: form.site, date: form.date,
     });
     sessionStorage.setItem("sitesync_deliveries", JSON.stringify(deliveries));
     toast.success("Delivery saved — inventory updated");
@@ -76,7 +62,6 @@ export default function NewDeliveryPage() {
       <form onSubmit={handleSave}>
         <Card className="p-5 space-y-4">
           <p className="text-xs text-muted-foreground">Fill manually if photo upload unavailable</p>
-          
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Supplier Name</Label>
@@ -129,7 +114,6 @@ export default function NewDeliveryPage() {
               <Input type="date" value={form.date} onChange={(e) => update("date", e.target.value)} />
             </div>
           </div>
-
           <Button type="submit" className="w-full mt-4">Save Delivery</Button>
         </Card>
       </form>

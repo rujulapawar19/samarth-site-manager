@@ -1,15 +1,28 @@
 import { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Minus, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { materials as initialMaterials, formatINR, Material } from "@/data/sampleData";
+import { formatINR } from "@/data/sampleData";
 import { Link } from "react-router-dom";
 import SiteFilter from "@/components/SiteFilter";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-function getStatusForQuantity(qty: number, unit: string): Material["status"] {
+interface DbMaterial {
+  id: string;
+  name: string;
+  supplier: string | null;
+  quantity: number;
+  unit: string;
+  rate: number;
+  status: string;
+  site: string | null;
+}
+
+function computeStatus(qty: number, unit: string): string {
   if (unit === "brass" || unit === "tonnes") return qty <= 3 ? "Critical" : qty <= 8 ? "Low" : "Sufficient";
-  if (unit === "sheets" || unit === "pieces" && qty < 100) return qty <= 10 ? "Critical" : qty <= 30 ? "Low" : "Sufficient";
+  if (unit === "sheets" || (unit === "pieces" && qty < 100)) return qty <= 10 ? "Critical" : qty <= 30 ? "Low" : "Sufficient";
   if (unit === "bags") return qty <= 50 ? "Critical" : qty <= 100 ? "Low" : "Sufficient";
   if (unit === "kg") return qty <= 500 ? "Critical" : qty <= 1000 ? "Low" : "Sufficient";
   if (unit === "meters") return qty <= 100 ? "Critical" : qty <= 300 ? "Low" : "Sufficient";
@@ -18,42 +31,42 @@ function getStatusForQuantity(qty: number, unit: string): Material["status"] {
 
 export default function MaterialsPage() {
   const [siteFilter, setSiteFilter] = useState("all");
-  const [inventory, setInventory] = useState<Material[]>(initialMaterials);
+  const [materials, setMaterials] = useState<DbMaterial[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState<string | null>(null);
 
-  useEffect(() => {
-    const raw = sessionStorage.getItem("sitesync_deliveries");
-    if (!raw) return;
-    const deliveries = JSON.parse(raw) as { material: string; quantity: number; unit: string; rate: number; supplier: string; site: string }[];
-    if (deliveries.length === 0) return;
+  const fetchMaterials = async () => {
+    const { data, error } = await supabase.from("materials").select("*").order("name");
+    if (error) {
+      toast.error("Failed to load materials");
+      console.error(error);
+    } else {
+      setMaterials(data || []);
+    }
+    setLoading(false);
+  };
 
-    setInventory((prev) => {
-      let updated = [...prev];
-      for (const d of deliveries) {
-        const idx = updated.findIndex((m) => m.name.toLowerCase() === d.material.toLowerCase());
-        if (idx > -1) {
-          const newQty = updated[idx].quantity + d.quantity;
-          updated[idx] = { ...updated[idx], quantity: newQty, status: getStatusForQuantity(newQty, updated[idx].unit) };
-        } else {
-          const newQty = d.quantity;
-          const unit = d.unit || "pieces";
-          updated.push({
-            id: `m-${Date.now()}-${Math.random()}`,
-            name: d.material,
-            supplier: d.supplier || "—",
-            quantity: newQty,
-            unit,
-            rate: d.rate || 0,
-            status: getStatusForQuantity(newQty, unit),
-            site: d.site || "site-a",
-          });
-        }
-      }
-      return updated;
-    });
-    sessionStorage.removeItem("sitesync_deliveries");
-  }, []);
+  useEffect(() => { fetchMaterials(); }, []);
 
-  const filtered = siteFilter === "all" ? inventory : inventory.filter(m => m.site === siteFilter);
+  const adjustQuantity = async (material: DbMaterial, delta: number) => {
+    const newQty = Math.max(0, material.quantity + delta);
+    const newStatus = computeStatus(newQty, material.unit);
+    setUpdating(material.id);
+
+    const { error } = await supabase
+      .from("materials")
+      .update({ quantity: newQty, status: newStatus })
+      .eq("id", material.id);
+
+    if (error) {
+      toast.error("Failed to update quantity");
+    } else {
+      setMaterials(prev => prev.map(m => m.id === material.id ? { ...m, quantity: newQty, status: newStatus } : m));
+    }
+    setUpdating(null);
+  };
+
+  const filtered = siteFilter === "all" ? materials : materials.filter(m => m.site === siteFilter);
 
   const statusClass = (status: string) => {
     switch (status) {
@@ -63,6 +76,14 @@ export default function MaterialsPage() {
       default: return "";
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -88,7 +109,7 @@ export default function MaterialsPage() {
               <tr className="border-b bg-muted/50">
                 <th className="text-left p-3 font-medium text-muted-foreground">Material</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Supplier</th>
-                <th className="text-right p-3 font-medium text-muted-foreground">Qty</th>
+                <th className="text-center p-3 font-medium text-muted-foreground">Qty</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Unit</th>
                 <th className="text-right p-3 font-medium text-muted-foreground">Rate</th>
                 <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
@@ -98,10 +119,34 @@ export default function MaterialsPage() {
               {filtered.map((m) => (
                 <tr key={m.id} className="border-b last:border-0 hover:bg-muted/30">
                   <td className="p-3 font-medium text-foreground">{m.name}</td>
-                  <td className="p-3 text-muted-foreground">{m.supplier}</td>
-                  <td className="p-3 text-right">{m.quantity.toLocaleString("en-IN")}</td>
+                  <td className="p-3 text-muted-foreground">{m.supplier || "—"}</td>
+                  <td className="p-3">
+                    <div className="flex items-center justify-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7 rounded-full"
+                        disabled={updating === m.id || m.quantity <= 0}
+                        onClick={() => adjustQuantity(m, -1)}
+                      >
+                        <Minus className="w-3 h-3" />
+                      </Button>
+                      <span className="min-w-[3rem] text-center font-semibold tabular-nums">
+                        {m.quantity.toLocaleString("en-IN")}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7 rounded-full"
+                        disabled={updating === m.id}
+                        onClick={() => adjustQuantity(m, 1)}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </td>
                   <td className="p-3 text-muted-foreground">{m.unit}</td>
-                  <td className="p-3 text-right">{formatINR(m.rate)}/{m.unit.slice(0, -1) || m.unit}</td>
+                  <td className="p-3 text-right">{formatINR(Number(m.rate))}/{m.unit.slice(0, -1) || m.unit}</td>
                   <td className="p-3 text-center">
                     <Badge variant="outline" className={statusClass(m.status)}>
                       {m.status}

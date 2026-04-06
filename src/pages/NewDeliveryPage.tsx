@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Camera } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Camera, Plus, Trash2, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,42 +9,129 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useActivity } from "@/context/ActivityContext";
 import { useSites } from "@/context/SiteContext";
+import { supabase } from "@/integrations/supabase/client";
+
+interface DbMaterial {
+  id: string;
+  name: string;
+  unit: string;
+  quantity: number;
+}
+
+interface DeliveryRow {
+  key: string;
+  materialId: string;
+  quantity: string;
+}
+
+function computeStatus(qty: number, unit: string): string {
+  if (unit === "brass" || unit === "tonnes") return qty <= 3 ? "Critical" : qty <= 8 ? "Low" : "Sufficient";
+  if (unit === "sheets" || (unit === "pieces" && qty < 100)) return qty <= 10 ? "Critical" : qty <= 30 ? "Low" : "Sufficient";
+  if (unit === "bags") return qty <= 50 ? "Critical" : qty <= 100 ? "Low" : "Sufficient";
+  if (unit === "kg") return qty <= 500 ? "Critical" : qty <= 1000 ? "Low" : "Sufficient";
+  if (unit === "meters") return qty <= 100 ? "Critical" : qty <= 300 ? "Low" : "Sufficient";
+  return qty <= 20 ? "Critical" : qty <= 50 ? "Low" : "Sufficient";
+}
 
 export default function NewDeliveryPage() {
   const navigate = useNavigate();
   const { addActivity } = useActivity();
   const { sites } = useSites();
-  const [form, setForm] = useState({
-    supplier: "", material: "", quantity: "", unit: "", rate: "", total: "", site: "", date: "2026-03-31",
-  });
 
-  const update = (field: string, value: string) => {
-    const next = { ...form, [field]: value };
-    if (field === "quantity" || field === "rate") {
-      const qty = field === "quantity" ? Number(value) : Number(next.quantity);
-      const rate = field === "rate" ? Number(value) : Number(next.rate);
-      if (qty && rate) next.total = String(qty * rate);
-    }
-    setForm(next);
-  };
+  const [materials, setMaterials] = useState<DbMaterial[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [supplier, setSupplier] = useState("");
+  const [site, setSite] = useState("");
+  const [date, setDate] = useState("2026-04-06");
+  const [rows, setRows] = useState<DeliveryRow[]>([
+    { key: crypto.randomUUID(), materialId: "", quantity: "" },
+  ]);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    supabase.from("materials").select("id, name, unit, quantity").order("name").then(({ data }) => {
+      setMaterials(data || []);
+      setLoading(false);
+    });
+  }, []);
+
+  const addRow = () => setRows(prev => [...prev, { key: crypto.randomUUID(), materialId: "", quantity: "" }]);
+  const removeRow = (key: string) => setRows(prev => prev.length > 1 ? prev.filter(r => r.key !== key) : prev);
+  const updateRow = (key: string, field: keyof DeliveryRow, value: string) =>
+    setRows(prev => prev.map(r => r.key === key ? { ...r, [field]: value } : r));
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.material || !form.quantity || !form.unit) {
-      toast.error("Please fill Material, Quantity, and Unit");
+    const validRows = rows.filter(r => r.materialId && Number(r.quantity) > 0);
+    if (validRows.length === 0) {
+      toast.error("Add at least one material with quantity");
       return;
     }
-    const deliveries = JSON.parse(sessionStorage.getItem("sitesync_deliveries") || "[]");
-    deliveries.push({
-      id: `del-${Date.now()}`, supplier: form.supplier, material: form.material,
-      quantity: Number(form.quantity), unit: form.unit, rate: Number(form.rate),
-      total: Number(form.total), site: form.site, date: form.date,
-    });
-    sessionStorage.setItem("sitesync_deliveries", JSON.stringify(deliveries));
+
+    setSaving(true);
+
+    // 1. Create delivery record
+    const { data: delivery, error: delErr } = await supabase
+      .from("deliveries")
+      .insert({ supplier: supplier || null, site: site || null, date })
+      .select("id")
+      .single();
+
+    if (delErr || !delivery) {
+      toast.error("Failed to save delivery");
+      setSaving(false);
+      return;
+    }
+
+    // 2. Insert delivery items
+    const items = validRows.map(r => ({
+      delivery_id: delivery.id,
+      material_id: r.materialId,
+      quantity: Number(r.quantity),
+    }));
+
+    const { error: itemErr } = await supabase.from("delivery_items").insert(items);
+    if (itemErr) {
+      toast.error("Failed to save delivery items");
+      setSaving(false);
+      return;
+    }
+
+    // 3. Update each material's quantity & status
+    for (const row of validRows) {
+      const mat = materials.find(m => m.id === row.materialId);
+      if (!mat) continue;
+      const newQty = mat.quantity + Number(row.quantity);
+
+      // Fetch unit for status calc
+      const { data: full } = await supabase.from("materials").select("unit").eq("id", mat.id).single();
+      const unit = full?.unit || "pieces";
+      const newStatus = computeStatus(newQty, unit);
+
+      await supabase.from("materials").update({ quantity: newQty, status: newStatus }).eq("id", mat.id);
+    }
+
+    const summary = validRows.map(r => {
+      const mat = materials.find(m => m.id === r.materialId);
+      return `${r.quantity} ${mat?.unit || ""} ${mat?.name || ""}`;
+    }).join(", ");
+
+    addActivity({ text: `Delivery: ${summary}${supplier ? ` from ${supplier}` : ""}`, icon: "delivery" });
     toast.success("Delivery saved — inventory updated");
-    addActivity({ text: `${form.quantity} ${form.unit} ${form.material} delivered${form.supplier ? ` by ${form.supplier}` : ""}`, icon: "delivery" });
+    setSaving(false);
     navigate("/materials");
   };
+
+  const getMaterialName = (id: string) => materials.find(m => m.id === id)?.name || "";
+  const getMaterialUnit = (id: string) => materials.find(m => m.id === id)?.unit || "";
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in max-w-2xl">
@@ -62,45 +149,15 @@ export default function NewDeliveryPage() {
       <form onSubmit={handleSave}>
         <Card className="p-5 space-y-4">
           <p className="text-xs text-muted-foreground">Fill manually if photo upload unavailable</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <Label>Supplier Name</Label>
-              <Input placeholder="e.g., Nashik Cement Agency" value={form.supplier} onChange={(e) => update("supplier", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Material *</Label>
-              <Input placeholder="e.g., OPC Cement 53 Grade" value={form.material} onChange={(e) => update("material", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Quantity *</Label>
-              <Input type="number" placeholder="e.g., 200" value={form.quantity} onChange={(e) => update("quantity", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Unit *</Label>
-              <Select value={form.unit} onValueChange={(v) => update("unit", v)}>
-                <SelectTrigger><SelectValue placeholder="Select unit" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bags">Bags</SelectItem>
-                  <SelectItem value="kg">Kg</SelectItem>
-                  <SelectItem value="pieces">Pieces</SelectItem>
-                  <SelectItem value="brass">Brass</SelectItem>
-                  <SelectItem value="tonnes">Tonnes</SelectItem>
-                  <SelectItem value="meters">Meters</SelectItem>
-                  <SelectItem value="sheets">Sheets</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Rate per Unit</Label>
-              <Input type="number" placeholder="₹" value={form.rate} onChange={(e) => update("rate", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Total Amount</Label>
-              <Input type="number" placeholder="₹" value={form.total} onChange={(e) => update("total", e.target.value)} />
+              <Label>Supplier</Label>
+              <Input placeholder="e.g., Nashik Cement Agency" value={supplier} onChange={e => setSupplier(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label>Site</Label>
-              <Select value={form.site} onValueChange={(v) => update("site", v)}>
+              <Select value={site} onValueChange={setSite}>
                 <SelectTrigger><SelectValue placeholder="Select site" /></SelectTrigger>
                 <SelectContent>
                   {sites.map(s => (
@@ -111,10 +168,74 @@ export default function NewDeliveryPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Date</Label>
-              <Input type="date" value={form.date} onChange={(e) => update("date", e.target.value)} />
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
             </div>
           </div>
-          <Button type="submit" className="w-full mt-4">Save Delivery</Button>
+
+          {/* Multi-material rows */}
+          <div className="space-y-2 mt-4">
+            <Label className="text-base font-semibold">Materials</Label>
+            <div className="border rounded-md overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted/50 border-b">
+                    <th className="text-left p-2 font-medium text-muted-foreground">Material *</th>
+                    <th className="text-left p-2 font-medium text-muted-foreground w-28">Qty *</th>
+                    <th className="text-left p-2 font-medium text-muted-foreground w-16">Unit</th>
+                    <th className="w-10"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.key} className="border-b last:border-0">
+                      <td className="p-2">
+                        <Select value={row.materialId} onValueChange={v => updateRow(row.key, "materialId", v)}>
+                          <SelectTrigger className="h-9"><SelectValue placeholder="Select material" /></SelectTrigger>
+                          <SelectContent>
+                            {materials.map(m => (
+                              <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="p-2">
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="0"
+                          className="h-9"
+                          value={row.quantity}
+                          onChange={e => updateRow(row.key, "quantity", e.target.value)}
+                        />
+                      </td>
+                      <td className="p-2 text-muted-foreground">
+                        {getMaterialUnit(row.materialId) || "—"}
+                      </td>
+                      <td className="p-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => removeRow(row.key)}
+                          disabled={rows.length <= 1}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={addRow} className="mt-1">
+              <Plus className="w-4 h-4 mr-1" /> Add Another Material
+            </Button>
+          </div>
+
+          <Button type="submit" className="w-full mt-4" disabled={saving}>
+            {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</> : "Save Delivery"}
+          </Button>
         </Card>
       </form>
     </div>

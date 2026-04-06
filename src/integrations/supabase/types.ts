@@ -14,7 +14,108 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      deliveries: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          site: string | null
+          supplier: string | null
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          site?: string | null
+          supplier?: string | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          site?: string | null
+          supplier?: string | null
+        }
+        Relationships: []
+      }
+      delivery_items: {
+        Row: {
+          created_at: string
+          delivery_id: string
+          id: string
+          material_id: string
+          quantity: number
+        }
+        Insert: {
+          created_at?: string
+          delivery_id: string
+          id?: string
+          material_id: string
+          quantity: number
+        }
+        Update: {
+          created_at?: string
+          delivery_id?: string
+          id?: string
+          material_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_items_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_items_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      materials: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          quantity: number
+          rate: number
+          site: string | null
+          status: string
+          supplier: string | null
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          quantity?: number
+          rate?: number
+          site?: string | null
+          status?: string
+          supplier?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          quantity?: number
+          rate?: number
+          site?: string | null
+          status?: string
+          supplier?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

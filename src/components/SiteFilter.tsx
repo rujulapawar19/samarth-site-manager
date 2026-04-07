@@ -19,7 +19,7 @@ export default function SiteFilter({ value, onChange, className = "w-44 h-9" }: 
       <SelectContent>
         <SelectItem value="all">All Sites</SelectItem>
         {sites.map(s => (
-          <SelectItem key={s.id} value={s.id}>{s.shortName}</SelectItem>
+          <SelectItem key={s.id} value={s.id}>{s.short_name}</SelectItem>
         ))}
       </SelectContent>
     </Select>

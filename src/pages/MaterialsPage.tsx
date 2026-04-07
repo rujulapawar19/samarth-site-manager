@@ -17,7 +17,7 @@ interface DbMaterial {
   unit: string;
   rate: number;
   status: string;
-  site: string | null;
+  site_id: string | null;
 }
 
 function computeStatus(qty: number, unit: string): string {
@@ -36,12 +36,12 @@ export default function MaterialsPage() {
   const [updating, setUpdating] = useState<string | null>(null);
 
   const fetchMaterials = async () => {
-    const { data, error } = await supabase.from("materials").select("*").order("name");
+    const { data, error } = await supabase.from("materials").select("id, name, supplier, quantity, unit, rate, status, site_id").order("name");
     if (error) {
       toast.error("Failed to load materials");
       console.error(error);
     } else {
-      setMaterials(data || []);
+      setMaterials((data || []).map(m => ({ ...m, rate: Number(m.rate) })));
     }
     setLoading(false);
   };
@@ -66,7 +66,7 @@ export default function MaterialsPage() {
     setUpdating(null);
   };
 
-  const filtered = siteFilter === "all" ? materials : materials.filter(m => m.site === siteFilter);
+  const filtered = siteFilter === "all" ? materials : materials.filter(m => m.site_id === siteFilter);
 
   const statusClass = (status: string) => {
     switch (status) {
@@ -122,35 +122,19 @@ export default function MaterialsPage() {
                   <td className="p-3 text-muted-foreground">{m.supplier || "—"}</td>
                   <td className="p-3">
                     <div className="flex items-center justify-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7 rounded-full"
-                        disabled={updating === m.id || m.quantity <= 0}
-                        onClick={() => adjustQuantity(m, -1)}
-                      >
+                      <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" disabled={updating === m.id || m.quantity <= 0} onClick={() => adjustQuantity(m, -1)}>
                         <Minus className="w-3 h-3" />
                       </Button>
-                      <span className="min-w-[3rem] text-center font-semibold tabular-nums">
-                        {m.quantity.toLocaleString("en-IN")}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7 rounded-full"
-                        disabled={updating === m.id}
-                        onClick={() => adjustQuantity(m, 1)}
-                      >
+                      <span className="min-w-[3rem] text-center font-semibold tabular-nums">{m.quantity.toLocaleString("en-IN")}</span>
+                      <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" disabled={updating === m.id} onClick={() => adjustQuantity(m, 1)}>
                         <Plus className="w-3 h-3" />
                       </Button>
                     </div>
                   </td>
                   <td className="p-3 text-muted-foreground">{m.unit}</td>
-                  <td className="p-3 text-right">{formatINR(Number(m.rate))}/{m.unit.slice(0, -1) || m.unit}</td>
+                  <td className="p-3 text-right">{formatINR(m.rate)}/{m.unit.slice(0, -1) || m.unit}</td>
                   <td className="p-3 text-center">
-                    <Badge variant="outline" className={statusClass(m.status)}>
-                      {m.status}
-                    </Badge>
+                    <Badge variant="outline" className={statusClass(m.status)}>{m.status}</Badge>
                   </td>
                 </tr>
               ))}

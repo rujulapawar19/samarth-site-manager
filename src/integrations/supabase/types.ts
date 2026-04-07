@@ -14,12 +14,79 @@ export type Database = {
   }
   public: {
     Tables: {
+      activities: {
+        Row: {
+          created_at: string
+          icon: string
+          id: string
+          text: string
+        }
+        Insert: {
+          created_at?: string
+          icon?: string
+          id?: string
+          text: string
+        }
+        Update: {
+          created_at?: string
+          icon?: string
+          id?: string
+          text?: string
+        }
+        Relationships: []
+      }
+      attendance: {
+        Row: {
+          check_in_time: string | null
+          created_at: string
+          date: string
+          id: string
+          present: boolean
+          site_id: string | null
+          worker_id: string
+        }
+        Insert: {
+          check_in_time?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          present?: boolean
+          site_id?: string | null
+          worker_id: string
+        }
+        Update: {
+          check_in_time?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          present?: boolean
+          site_id?: string | null
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deliveries: {
         Row: {
           created_at: string
           date: string
           id: string
           site: string | null
+          site_id: string | null
           supplier: string | null
         }
         Insert: {
@@ -27,6 +94,7 @@ export type Database = {
           date?: string
           id?: string
           site?: string | null
+          site_id?: string | null
           supplier?: string | null
         }
         Update: {
@@ -34,9 +102,18 @@ export type Database = {
           date?: string
           id?: string
           site?: string | null
+          site_id?: string | null
           supplier?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "deliveries_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       delivery_items: {
         Row: {
@@ -77,6 +154,50 @@ export type Database = {
           },
         ]
       }
+      invoices: {
+        Row: {
+          amount: number
+          created_at: string
+          date: string
+          description: string
+          id: string
+          site_id: string | null
+          status: string
+          supplier: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          site_id?: string | null
+          status?: string
+          supplier: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          site_id?: string | null
+          status?: string
+          supplier?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       materials: {
         Row: {
           created_at: string
@@ -85,6 +206,7 @@ export type Database = {
           quantity: number
           rate: number
           site: string | null
+          site_id: string | null
           status: string
           supplier: string | null
           unit: string
@@ -97,6 +219,7 @@ export type Database = {
           quantity?: number
           rate?: number
           site?: string | null
+          site_id?: string | null
           status?: string
           supplier?: string | null
           unit?: string
@@ -109,12 +232,146 @@ export type Database = {
           quantity?: number
           rate?: number
           site?: string | null
+          site_id?: string | null
           status?: string
           supplier?: string | null
           unit?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "materials_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sites: {
+        Row: {
+          created_at: string
+          id: string
+          location: string
+          name: string
+          short_name: string
+          start_date: string
+          total_budget: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          location?: string
+          name: string
+          short_name: string
+          start_date?: string
+          total_budget?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          location?: string
+          name?: string
+          short_name?: string
+          start_date?: string
+          total_budget?: number
+          updated_at?: string
+        }
         Relationships: []
+      }
+      suppliers: {
+        Row: {
+          contact: string
+          created_at: string
+          id: string
+          location: string | null
+          material: string
+          name: string
+          rating: number
+          total_business: number
+          updated_at: string
+        }
+        Insert: {
+          contact: string
+          created_at?: string
+          id?: string
+          location?: string | null
+          material: string
+          name: string
+          rating?: number
+          total_business?: number
+          updated_at?: string
+        }
+        Update: {
+          contact?: string
+          created_at?: string
+          id?: string
+          location?: string | null
+          material?: string
+          name?: string
+          rating?: number
+          total_business?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      workers: {
+        Row: {
+          amount_due: number
+          created_at: string
+          days_present: number
+          id: string
+          name: string
+          paid_at: string | null
+          phone: string | null
+          role: string
+          site_id: string | null
+          status: string
+          updated_at: string
+          wage_rate: number
+          wage_type: string
+        }
+        Insert: {
+          amount_due?: number
+          created_at?: string
+          days_present?: number
+          id?: string
+          name: string
+          paid_at?: string | null
+          phone?: string | null
+          role: string
+          site_id?: string | null
+          status?: string
+          updated_at?: string
+          wage_rate?: number
+          wage_type?: string
+        }
+        Update: {
+          amount_due?: number
+          created_at?: string
+          days_present?: number
+          id?: string
+          name?: string
+          paid_at?: string | null
+          phone?: string | null
+          role?: string
+          site_id?: string | null
+          status?: string
+          updated_at?: string
+          wage_rate?: number
+          wage_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workers_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

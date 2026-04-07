@@ -1,37 +1,66 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export interface Site {
   id: string;
   name: string;
-  shortName: string;
+  short_name: string;
   location: string;
-  startDate: string;
-  totalBudget: number;
+  start_date: string;
+  total_budget: number;
 }
 
 interface SiteContextType {
   sites: Site[];
-  addSite: (site: Omit<Site, "id">) => void;
+  loading: boolean;
+  addSite: (site: Omit<Site, "id">) => Promise<void>;
+  refreshSites: () => Promise<void>;
 }
-
-const defaultSites: Site[] = [
-  { id: "site-a", name: "Samarth Residency — Tower A", shortName: "Tower A", location: "Nashik", startDate: "2026-01-15", totalBudget: 4500000 },
-  { id: "site-b", name: "Samarth Residency — Tower B", shortName: "Tower B", location: "Nashik", startDate: "2026-02-01", totalBudget: 3800000 },
-  { id: "site-c", name: "Samarth Commerce Park", shortName: "Commerce Park", location: "Nashik", startDate: "2025-11-10", totalBudget: 2800000 },
-];
 
 const SiteContext = createContext<SiteContextType | null>(null);
 
 export function SiteProvider({ children }: { children: ReactNode }) {
-  const [sites, setSites] = useState<Site[]>(defaultSites);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const addSite = (site: Omit<Site, "id">) => {
-    const id = `site-${Date.now()}`;
-    setSites(prev => [...prev, { ...site, id }]);
+  const fetchSites = async () => {
+    const { data, error } = await supabase.from("sites").select("*").order("name");
+    if (error) {
+      console.error("Failed to load sites:", error);
+    } else {
+      setSites((data || []).map(s => ({
+        id: s.id,
+        name: s.name,
+        short_name: s.short_name,
+        location: s.location,
+        start_date: s.start_date,
+        total_budget: Number(s.total_budget),
+      })));
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchSites(); }, []);
+
+  const addSite = async (site: Omit<Site, "id">) => {
+    const { error } = await supabase.from("sites").insert({
+      name: site.name,
+      short_name: site.short_name,
+      location: site.location,
+      start_date: site.start_date,
+      total_budget: site.total_budget,
+    });
+    if (error) {
+      toast.error("Failed to add site");
+      console.error(error);
+    } else {
+      await fetchSites();
+    }
   };
 
   return (
-    <SiteContext.Provider value={{ sites, addSite }}>
+    <SiteContext.Provider value={{ sites, loading, addSite, refreshSites: fetchSites }}>
       {children}
     </SiteContext.Provider>
   );

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, Wallet, Check } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Wallet, Check, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,19 +8,34 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { dailyWorkers as initialDailyWorkers, monthlyStaff as initialMonthlyStaff, formatINR, type DailyWorker, type MonthlyStaff } from "@/data/sampleData";
+import { formatINR } from "@/data/sampleData";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useActivity } from "@/context/ActivityContext";
 import { useSites } from "@/context/SiteContext";
 import SiteFilter from "@/components/SiteFilter";
 
+interface DbWorker {
+  id: string;
+  name: string;
+  role: string;
+  wage_type: string;
+  wage_rate: number;
+  days_present: number;
+  amount_due: number;
+  status: string;
+  phone: string | null;
+  site_id: string | null;
+  paid_at: string | null;
+}
+
 export default function LaborPage() {
   const navigate = useNavigate();
   const { addActivity } = useActivity();
   const { sites } = useSites();
-  const [workers, setWorkers] = useState<DailyWorker[]>([...initialDailyWorkers]);
-  const [staff, setStaff] = useState<MonthlyStaff[]>([...initialMonthlyStaff]);
+  const [workers, setWorkers] = useState<DbWorker[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showPayday, setShowPayday] = useState(false);
   const [showAddWorker, setShowAddWorker] = useState(false);
   const [siteFilter, setSiteFilter] = useState("all");
@@ -29,44 +44,57 @@ export default function LaborPage() {
     name: "", role: "", wageType: "daily" as "daily" | "monthly", wageRate: "", phone: "", site: "",
   });
 
-  const filteredWorkers = siteFilter === "all" ? workers : workers.filter(w => w.site === siteFilter);
-  const filteredStaff = siteFilter === "all" ? staff : staff.filter(s => s.site === siteFilter);
-  const totalPending = filteredWorkers.filter(w => w.status === "Pending").reduce((s, w) => s + w.amountDue, 0);
+  const fetchWorkers = async () => {
+    const { data, error } = await supabase.from("workers").select("*").order("name");
+    if (error) { toast.error("Failed to load workers"); console.error(error); }
+    else setWorkers((data || []).map(w => ({ ...w, wage_rate: Number(w.wage_rate), amount_due: Number(w.amount_due) })));
+    setLoading(false);
+  };
 
-  const markPaid = (id: string) => {
+  useEffect(() => { fetchWorkers(); }, []);
+
+  const dailyWorkers = workers.filter(w => w.wage_type === "daily");
+  const monthlyStaff = workers.filter(w => w.wage_type === "monthly");
+
+  const filteredDaily = siteFilter === "all" ? dailyWorkers : dailyWorkers.filter(w => w.site_id === siteFilter);
+  const filteredMonthly = siteFilter === "all" ? monthlyStaff : monthlyStaff.filter(w => w.site_id === siteFilter);
+  const totalPending = filteredDaily.filter(w => w.status === "Pending").reduce((s, w) => s + w.amount_due, 0);
+
+  const markPaid = async (id: string) => {
     const worker = workers.find(w => w.id === id);
-    setWorkers(prev => prev.map(w => w.id === id ? { ...w, status: "Paid" as const } : w));
+    const { error } = await supabase.from("workers").update({ status: "Paid", paid_at: new Date().toISOString() }).eq("id", id);
+    if (error) { toast.error("Failed to update"); return; }
+    await fetchWorkers();
     toast.success("Marked as paid");
     if (worker) {
-      addActivity({ text: `${worker.name} marked paid — ${formatINR(worker.amountDue)}`, icon: "payment" });
+      addActivity({ text: `${worker.name} marked paid — ${formatINR(worker.amount_due)}`, icon: "payment" });
     }
   };
 
-  const addWorker = () => {
+  const addWorker = async () => {
     if (!form.name || !form.role || !form.wageRate || !form.site) {
       toast.error("Please fill all required fields");
       return;
     }
     const rate = Number(form.wageRate);
-    if (form.wageType === "daily") {
-      const newWorker: DailyWorker = {
-        id: `w-${Date.now()}`, name: form.name, role: form.role,
-        dailyRate: rate, daysPresent: 0, amountDue: 0,
-        status: "Pending", site: form.site, phone: form.phone,
-      };
-      setWorkers(prev => [newWorker, ...prev]);
-    } else {
-      const newStaff: MonthlyStaff = {
-        id: `s-${Date.now()}`, name: form.name, designation: form.role,
-        monthlySalary: rate, status: "Pending", site: form.site,
-      };
-      setStaff(prev => [newStaff, ...prev]);
-    }
+    const { error } = await supabase.from("workers").insert({
+      name: form.name,
+      role: form.role,
+      wage_type: form.wageType,
+      wage_rate: rate,
+      amount_due: form.wageType === "monthly" ? rate : 0,
+      phone: form.phone || null,
+      site_id: form.site,
+    });
+    if (error) { toast.error("Failed to add worker"); return; }
+    await fetchWorkers();
     toast.success(`${form.name} added as ${form.wageType} worker`);
     addActivity({ text: `New ${form.wageType} worker added — ${form.name} (${form.role})`, icon: "attendance" });
     setForm({ name: "", role: "", wageType: "daily", wageRate: "", phone: "", site: "" });
     setShowAddWorker(false);
   };
+
+  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -149,8 +177,8 @@ export default function LaborPage() {
                   <p className="text-sm text-muted-foreground">Total cash required this Friday</p>
                 </div>
                 <div className="text-sm text-muted-foreground space-y-1">
-                  <p>{filteredWorkers.filter(w => w.status === "Pending").length} workers with pending payments</p>
-                  <p>{filteredWorkers.filter(w => w.status === "Paid").length} workers already paid</p>
+                  <p>{filteredDaily.filter(w => w.status === "Pending").length} workers with pending payments</p>
+                  <p>{filteredDaily.filter(w => w.status === "Paid").length} workers already paid</p>
                 </div>
                 <Button className="w-full" onClick={() => { setShowPayday(false); navigate("/payday"); }}>
                   Proceed to Payday
@@ -163,8 +191,8 @@ export default function LaborPage() {
 
       <Tabs defaultValue="daily">
         <TabsList>
-          <TabsTrigger value="daily">Daily Workers ({filteredWorkers.length})</TabsTrigger>
-          <TabsTrigger value="monthly">Monthly Staff ({filteredStaff.length})</TabsTrigger>
+          <TabsTrigger value="daily">Daily Workers ({filteredDaily.length})</TabsTrigger>
+          <TabsTrigger value="monthly">Monthly Staff ({filteredMonthly.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="daily">
           <Card className="overflow-hidden">
@@ -182,20 +210,20 @@ export default function LaborPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredWorkers.map((w) => (
+                  {filteredDaily.map((w) => (
                     <tr key={w.id} className="border-b last:border-0 hover:bg-muted/30">
                       <td className="p-3 font-medium text-foreground">{w.name}</td>
                       <td className="p-3 text-muted-foreground">{w.role}</td>
-                      <td className="p-3 text-right">{formatINR(w.dailyRate)}</td>
-                      <td className="p-3 text-center">{w.daysPresent}</td>
-                      <td className="p-3 text-right font-medium">{formatINR(w.amountDue)}</td>
+                      <td className="p-3 text-right">{formatINR(w.wage_rate)}</td>
+                      <td className="p-3 text-center">{w.days_present}</td>
+                      <td className="p-3 text-right font-medium">{formatINR(w.amount_due)}</td>
                       <td className="p-3 text-center">
                         <Badge variant="outline" className={w.status === "Paid" ? "status-paid" : "status-pending"}>
                           {w.status}
                         </Badge>
                       </td>
                       <td className="p-3 text-center">
-                        {w.status === "Pending" && w.amountDue > 0 && (
+                        {w.status === "Pending" && w.amount_due > 0 && (
                           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => markPaid(w.id)}>
                             <Check className="w-3 h-3 mr-1" /> Pay
                           </Button>
@@ -221,11 +249,11 @@ export default function LaborPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStaff.map((s) => (
+                  {filteredMonthly.map((s) => (
                     <tr key={s.id} className="border-b last:border-0 hover:bg-muted/30">
                       <td className="p-3 font-medium text-foreground">{s.name}</td>
-                      <td className="p-3 text-muted-foreground">{s.designation}</td>
-                      <td className="p-3 text-right">{formatINR(s.monthlySalary)}</td>
+                      <td className="p-3 text-muted-foreground">{s.role}</td>
+                      <td className="p-3 text-right">{formatINR(s.wage_rate)}</td>
                       <td className="p-3 text-center">
                         <Badge variant="outline" className={s.status === "Paid" ? "status-paid" : "status-pending"}>
                           {s.status}

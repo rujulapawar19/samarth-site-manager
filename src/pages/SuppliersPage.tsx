@@ -1,43 +1,65 @@
-import { useState } from "react";
-import { Plus, Star, Phone } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Star, Phone, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { suppliers as initialSuppliers, formatINR, Supplier } from "@/data/sampleData";
+import { formatINR } from "@/data/sampleData";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+interface DbSupplier {
+  id: string;
+  name: string;
+  material: string;
+  contact: string;
+  location: string | null;
+  rating: number;
+  total_business: number;
+}
+
 export default function SuppliersPage() {
-  const [supplierList, setSupplierList] = useState<Supplier[]>(initialSuppliers);
+  const [suppliers, setSuppliers] = useState<DbSupplier[]>([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", material: "", contact: "", location: "" });
 
-  const handleSave = () => {
+  const fetchSuppliers = async () => {
+    const { data, error } = await supabase.from("suppliers").select("*").order("name");
+    if (error) { toast.error("Failed to load suppliers"); console.error(error); }
+    else setSuppliers((data || []).map(s => ({ ...s, rating: Number(s.rating), total_business: Number(s.total_business) })));
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchSuppliers(); }, []);
+
+  const handleSave = async () => {
     if (!form.name || !form.material || !form.contact) {
       toast.error("Please fill all required fields");
       return;
     }
-    const newSupplier: Supplier = {
-      id: `sup-${Date.now()}`,
+    const { error } = await supabase.from("suppliers").insert({
       name: form.name,
       material: form.material,
       contact: form.contact,
-      totalBusiness: 0,
-      rating: 0,
-    };
-    setSupplierList((prev) => [...prev, newSupplier]);
+      location: form.location || "Nashik",
+    });
+    if (error) { toast.error("Failed to add supplier"); return; }
+    await fetchSuppliers();
     setForm({ name: "", material: "", contact: "", location: "" });
     setOpen(false);
-    toast.success(`${newSupplier.name} added successfully`);
+    toast.success(`${form.name} added successfully`);
   };
+
+  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="page-header">Suppliers</h2>
-          <p className="text-sm text-muted-foreground">{supplierList.length} active suppliers</p>
+          <p className="text-sm text-muted-foreground">{suppliers.length} active suppliers</p>
         </div>
         <Button size="sm" onClick={() => setOpen(true)}>
           <Plus className="w-4 h-4 mr-1" /> Add Supplier
@@ -45,7 +67,7 @@ export default function SuppliersPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {supplierList.map((sup) => (
+        {suppliers.map((sup) => (
           <Card key={sup.id} className="p-4">
             <div className="flex items-start justify-between">
               <div>
@@ -63,38 +85,14 @@ export default function SuppliersPage() {
                 {sup.contact}
               </div>
               <div className="text-right">
-                <p className="text-sm font-semibold text-foreground">{formatINR(sup.totalBusiness)}</p>
-                <p className="text-[10px] text-muted-foreground">this month</p>
+                <p className="text-sm font-semibold text-foreground">{formatINR(sup.total_business)}</p>
+                <p className="text-[10px] text-muted-foreground">total business</p>
               </div>
             </div>
           </Card>
         ))}
       </div>
 
-      {/* Price Comparison */}
-      <Card className="p-5">
-        <h3 className="font-semibold text-foreground mb-3">Price Comparison — Cheapest per Material</h3>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between py-1.5 border-b border-border">
-            <span className="text-muted-foreground">Cement (OPC 53 Grade)</span>
-            <span className="font-medium text-foreground">Nashik Cement Agency — ₹380/bag</span>
-          </div>
-          <div className="flex justify-between py-1.5 border-b border-border">
-            <span className="text-muted-foreground">TMT Steel 12mm</span>
-            <span className="font-medium text-foreground">Shree Steel Traders — ₹58/kg</span>
-          </div>
-          <div className="flex justify-between py-1.5 border-b border-border">
-            <span className="text-muted-foreground">Red Bricks</span>
-            <span className="font-medium text-foreground">Patil Brick Suppliers — ₹8/piece</span>
-          </div>
-          <div className="flex justify-between py-1.5">
-            <span className="text-muted-foreground">River Sand</span>
-            <span className="font-medium text-foreground">Godavari Sand Suppliers — ₹1,800/brass</span>
-          </div>
-        </div>
-      </Card>
-
-      {/* Add Supplier Modal */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>

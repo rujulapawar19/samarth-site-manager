@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,44 +7,73 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { invoices as initialInvoices, suppliers, formatINR, Invoice } from "@/data/sampleData";
+import { formatINR } from "@/data/sampleData";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSites } from "@/context/SiteContext";
 import SiteFilter from "@/components/SiteFilter";
 
+interface DbInvoice {
+  id: string;
+  supplier: string;
+  description: string;
+  amount: number;
+  site_id: string | null;
+  status: string;
+  date: string;
+}
+
 export default function InvoicesPage() {
   const { sites } = useSites();
-  const [invoiceList, setInvoiceList] = useState<Invoice[]>(initialInvoices);
+  const [invoices, setInvoices] = useState<DbInvoice[]>([]);
+  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [siteFilter, setSiteFilter] = useState("all");
   const [open, setOpen] = useState(false);
+  const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
   const [form, setForm] = useState({ supplier: "", description: "", amount: "", site: "", status: "Pending" as "Paid" | "Pending" });
 
-  const filtered = invoiceList
+  const fetchInvoices = async () => {
+    const { data, error } = await supabase.from("invoices").select("*").order("date", { ascending: false });
+    if (error) { toast.error("Failed to load invoices"); }
+    else setInvoices((data || []).map(i => ({ ...i, amount: Number(i.amount) })));
+    setLoading(false);
+  };
+
+  const fetchSuppliers = async () => {
+    const { data } = await supabase.from("suppliers").select("id, name").order("name");
+    setSuppliers(data || []);
+  };
+
+  useEffect(() => { fetchInvoices(); fetchSuppliers(); }, []);
+
+  const filtered = invoices
     .filter(i => statusFilter === "all" || i.status === statusFilter)
-    .filter(i => siteFilter === "all" || i.site === siteFilter);
+    .filter(i => siteFilter === "all" || i.site_id === siteFilter);
 
-  const totalPending = invoiceList.filter(i => i.status === "Pending").reduce((s, i) => s + i.amount, 0);
+  const totalPending = invoices.filter(i => i.status === "Pending").reduce((s, i) => s + i.amount, 0);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.supplier || !form.description || !form.amount || !form.site) {
       toast.error("Please fill all required fields");
       return;
     }
-    const newInvoice: Invoice = {
-      id: `inv${Date.now()}`,
+    const { error } = await supabase.from("invoices").insert({
       supplier: form.supplier,
       description: form.description,
       amount: Number(form.amount),
-      site: form.site,
+      site_id: form.site,
       status: form.status,
       date: new Date().toISOString().split("T")[0],
-    };
-    setInvoiceList(prev => [newInvoice, ...prev]);
+    });
+    if (error) { toast.error("Failed to save invoice"); return; }
+    await fetchInvoices();
     setOpen(false);
     setForm({ supplier: "", description: "", amount: "", site: "", status: "Pending" });
     toast.success("Invoice generated successfully");
   };
+
+  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -140,7 +169,7 @@ export default function InvoicesPage() {
                 <SelectTrigger><SelectValue placeholder="Select site" /></SelectTrigger>
                 <SelectContent>
                   {sites.map(s => (
-                    <SelectItem key={s.id} value={s.id}>{s.shortName}</SelectItem>
+                    <SelectItem key={s.id} value={s.id}>{s.short_name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

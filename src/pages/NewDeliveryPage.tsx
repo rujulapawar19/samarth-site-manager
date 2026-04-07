@@ -43,7 +43,7 @@ export default function NewDeliveryPage() {
   const [saving, setSaving] = useState(false);
   const [supplier, setSupplier] = useState("");
   const [site, setSite] = useState("");
-  const [date, setDate] = useState("2026-04-06");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [rows, setRows] = useState<DeliveryRow[]>([
     { key: crypto.randomUUID(), materialId: "", quantity: "" },
   ]);
@@ -70,10 +70,9 @@ export default function NewDeliveryPage() {
 
     setSaving(true);
 
-    // 1. Create delivery record
     const { data: delivery, error: delErr } = await supabase
       .from("deliveries")
-      .insert({ supplier: supplier || null, site: site || null, date })
+      .insert({ supplier: supplier || null, site: null, site_id: site || null, date })
       .select("id")
       .single();
 
@@ -83,7 +82,6 @@ export default function NewDeliveryPage() {
       return;
     }
 
-    // 2. Insert delivery items
     const items = validRows.map(r => ({
       delivery_id: delivery.id,
       material_id: r.materialId,
@@ -97,17 +95,11 @@ export default function NewDeliveryPage() {
       return;
     }
 
-    // 3. Update each material's quantity & status
     for (const row of validRows) {
       const mat = materials.find(m => m.id === row.materialId);
       if (!mat) continue;
       const newQty = mat.quantity + Number(row.quantity);
-
-      // Fetch unit for status calc
-      const { data: full } = await supabase.from("materials").select("unit").eq("id", mat.id).single();
-      const unit = full?.unit || "pieces";
-      const newStatus = computeStatus(newQty, unit);
-
+      const newStatus = computeStatus(newQty, mat.unit);
       await supabase.from("materials").update({ quantity: newQty, status: newStatus }).eq("id", mat.id);
     }
 
@@ -122,15 +114,10 @@ export default function NewDeliveryPage() {
     navigate("/materials");
   };
 
-  const getMaterialName = (id: string) => materials.find(m => m.id === id)?.name || "";
   const getMaterialUnit = (id: string) => materials.find(m => m.id === id)?.unit || "";
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
 
   return (
@@ -149,7 +136,6 @@ export default function NewDeliveryPage() {
       <form onSubmit={handleSave}>
         <Card className="p-5 space-y-4">
           <p className="text-xs text-muted-foreground">Fill manually if photo upload unavailable</p>
-
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label>Supplier</Label>
@@ -172,7 +158,6 @@ export default function NewDeliveryPage() {
             </div>
           </div>
 
-          {/* Multi-material rows */}
           <div className="space-y-2 mt-4">
             <Label className="text-base font-semibold">Materials</Label>
             <div className="border rounded-md overflow-hidden">
@@ -199,27 +184,11 @@ export default function NewDeliveryPage() {
                         </Select>
                       </td>
                       <td className="p-2">
-                        <Input
-                          type="number"
-                          min="1"
-                          placeholder="0"
-                          className="h-9"
-                          value={row.quantity}
-                          onChange={e => updateRow(row.key, "quantity", e.target.value)}
-                        />
+                        <Input type="number" min="1" placeholder="0" className="h-9" value={row.quantity} onChange={e => updateRow(row.key, "quantity", e.target.value)} />
                       </td>
-                      <td className="p-2 text-muted-foreground">
-                        {getMaterialUnit(row.materialId) || "—"}
-                      </td>
+                      <td className="p-2 text-muted-foreground">{getMaterialUnit(row.materialId) || "—"}</td>
                       <td className="p-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive"
-                          onClick={() => removeRow(row.key)}
-                          disabled={rows.length <= 1}
-                        >
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeRow(row.key)} disabled={rows.length <= 1}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </td>

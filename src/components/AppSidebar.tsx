@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, CalendarCheck, Wallet, Package,
   Truck, Building2, FileText, TrendingUp, AlertTriangle, LogOut
@@ -7,6 +7,7 @@ import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader,
 } from "@/components/ui/sidebar";
+import { useAuth, SUPERVISOR_ROUTES } from "@/context/AuthContext";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -25,6 +26,17 @@ export { navItems };
 
 export function AppSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const filteredItems = user?.role === "supervisor"
+    ? navItems.filter(i => SUPERVISOR_ROUTES.includes(i.url))
+    : navItems;
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -43,7 +55,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => {
+              {filteredItems.map((item) => {
                 const isActive = location.pathname === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -63,11 +75,9 @@ export function AppSidebar() {
       <div className="mt-auto p-3 border-t border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Logout">
-              <Link to="/" className="gap-3 text-sidebar-foreground/60 hover:text-sidebar-foreground">
-                <LogOut className="w-4 h-4" />
-                <span>Logout</span>
-              </Link>
+            <SidebarMenuButton tooltip="Logout" onClick={handleLogout}>
+              <LogOut className="w-4 h-4" />
+              <span>Logout</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

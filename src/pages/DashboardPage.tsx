@@ -206,23 +206,23 @@ export default function DashboardPage() {
         })}
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Link to="/attendance">
-          <Button variant="outline" className="w-full h-auto py-4 flex flex-col gap-1.5 border-primary/20 hover:bg-primary/5">
-            <CalendarCheck className="w-5 h-5 text-primary" />
-            <span className="text-xs font-medium">Mark Attendance</span>
+          <Button variant="outline" className="w-full h-auto py-3 sm:py-4 flex flex-col gap-1 sm:gap-1.5 border-primary/20 hover:bg-primary/5">
+            <CalendarCheck className="w-4 sm:w-5 h-4 sm:h-5 text-primary" />
+            <span className="text-[10px] sm:text-xs font-medium">Attendance</span>
           </Button>
         </Link>
         <Link to="/new-delivery">
-          <Button variant="outline" className="w-full h-auto py-4 flex flex-col gap-1.5 border-primary/20 hover:bg-primary/5">
-            <Truck className="w-5 h-5 text-primary" />
-            <span className="text-xs font-medium">New Delivery</span>
+          <Button variant="outline" className="w-full h-auto py-3 sm:py-4 flex flex-col gap-1 sm:gap-1.5 border-primary/20 hover:bg-primary/5">
+            <Truck className="w-4 sm:w-5 h-4 sm:h-5 text-primary" />
+            <span className="text-[10px] sm:text-xs font-medium">Delivery</span>
           </Button>
         </Link>
         <Link to="/invoices">
-          <Button variant="outline" className="w-full h-auto py-4 flex flex-col gap-1.5 border-primary/20 hover:bg-primary/5">
-            <FileText className="w-5 h-5 text-primary" />
-            <span className="text-xs font-medium">Generate Invoice</span>
+          <Button variant="outline" className="w-full h-auto py-3 sm:py-4 flex flex-col gap-1 sm:gap-1.5 border-primary/20 hover:bg-primary/5">
+            <FileText className="w-4 sm:w-5 h-4 sm:h-5 text-primary" />
+            <span className="text-[10px] sm:text-xs font-medium">Invoice</span>
           </Button>
         </Link>
       </div>

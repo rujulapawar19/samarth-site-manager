@@ -61,12 +61,12 @@ export default function PaydayPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="page-header">Payday</h2>
           <p className="text-sm text-muted-foreground">Weekly payment management</p>
         </div>
-        <Button onClick={sendAllSlips} className="bg-emerald-600 hover:bg-emerald-700 text-primary-foreground">
+        <Button onClick={sendAllSlips} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-primary-foreground">
           <Send className="w-4 h-4 mr-1" /> Send All Slips
         </Button>
       </div>
@@ -82,7 +82,7 @@ export default function PaydayPage() {
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Pending</h3>
           {pendingWorkers.map((worker) => (
             <Card key={worker.id} className="p-4">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-sm text-foreground">{worker.name}</p>
@@ -94,7 +94,7 @@ export default function PaydayPage() {
                 </div>
                 <div className="flex gap-1.5 shrink-0">
                   <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => sendWhatsApp(worker)}>
-                    <MessageCircle className="w-3.5 h-3.5 mr-1" /> WhatsApp
+                    <MessageCircle className="w-3.5 h-3.5 mr-1" /> <span className="hidden sm:inline">WhatsApp</span><span className="sm:hidden">WA</span>
                   </Button>
                   <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-primary-foreground" onClick={() => markPaid(worker.id)}>
                     <Check className="w-3.5 h-3.5 mr-1" /> Paid

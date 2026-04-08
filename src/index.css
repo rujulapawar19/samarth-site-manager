@@ -93,4 +93,19 @@
   .status-low {
     @apply bg-amber-50 text-amber-700 border-amber-200;
   }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* Mobile responsive table scrolling */
+@media (max-width: 640px) {
+  .page-header {
+    font-size: 1.25rem;
+  }
+  
+  table {
+    min-width: 500px;
+  }
 }

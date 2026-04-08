@@ -81,9 +81,9 @@ export default function FinancePage() {
         </div>
       </Card>
 
-      <Card className="p-5">
-        <h3 className="font-semibold text-foreground mb-4">Budget vs Actual — By Site</h3>
-        <div className="h-64">
+      <Card className="p-3 sm:p-5">
+        <h3 className="font-semibold text-foreground mb-4 text-sm sm:text-base">Budget vs Actual — By Site</h3>
+        <div className="h-48 sm:h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={filteredBudgets} barGap={4}>
               <XAxis dataKey="site" tick={{ fontSize: 12 }} />
@@ -96,9 +96,9 @@ export default function FinancePage() {
         </div>
       </Card>
 
-      <Card className="p-5">
-        <h3 className="font-semibold text-foreground mb-4">Monthly Expense Breakdown</h3>
-        <div className="h-56">
+      <Card className="p-3 sm:p-5">
+        <h3 className="font-semibold text-foreground mb-4 text-sm sm:text-base">Monthly Expense Breakdown</h3>
+        <div className="h-48 sm:h-56">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie data={expenseBreakdown} dataKey="amount" nameKey="category" cx="50%" cy="50%" outerRadius={80} innerRadius={40}>

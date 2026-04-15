@@ -3,8 +3,8 @@ import { Card } from "@/components/ui/card";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { formatINR } from "@/data/sampleData";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
-import SiteFilter from "@/components/SiteFilter";
 import { useSites } from "@/context/SiteContext";
+import { useSelectedSite } from "@/context/SelectedSiteContext";
 import { supabase } from "@/integrations/supabase/client";
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -23,7 +23,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function FinancePage() {
   const { sites } = useSites();
-  const [siteFilter, setSiteFilter] = useState("all");
+  const { selectedSiteId } = useSelectedSite();
   const [budgetData, setBudgetData] = useState<{ site: string; budget: number; actual: number; siteId: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,7 +46,9 @@ export default function FinancePage() {
     if (sites.length > 0) fetchData();
   }, [sites]);
 
-  const filteredBudgets = siteFilter === "all" ? budgetData : budgetData.filter(b => b.siteId === siteFilter);
+  const filteredBudgets = selectedSiteId && selectedSiteId !== "all"
+    ? budgetData.filter(b => b.siteId === selectedSiteId)
+    : budgetData;
   const totalBudget = filteredBudgets.reduce((s, b) => s + b.budget, 0);
   const totalActual = filteredBudgets.reduce((s, b) => s + b.actual, 0);
 
@@ -68,7 +70,6 @@ export default function FinancePage() {
           <h2 className="page-header">Finance Dashboard</h2>
           <p className="text-sm text-muted-foreground">Budget & Spending Overview</p>
         </div>
-        <SiteFilter value={siteFilter} onChange={setSiteFilter} />
       </div>
 
       <Card className="p-4 bg-accent/10 border-accent/30 flex items-start gap-3">

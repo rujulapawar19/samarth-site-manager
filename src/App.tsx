@@ -4,7 +4,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/AppLayout";
 import { AuthProvider } from "./context/AuthContext";
+import { SelectedSiteProvider } from "./context/SelectedSiteContext";
 import LoginPage from "./pages/LoginPage";
+import SiteSelectionPage from "./pages/SiteSelectionPage";
 import DashboardPage from "./pages/DashboardPage";
 import LaborPage from "./pages/LaborPage";
 import AttendancePage from "./pages/AttendancePage";
@@ -28,9 +30,11 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
         <SiteProvider>
+        <SelectedSiteProvider>
         <ActivityProvider>
         <Routes>
           <Route path="/" element={<LoginPage />} />
+          <Route path="/select-site" element={<SiteSelectionPage />} />
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/labor" element={<LaborPage />} />
@@ -46,6 +50,7 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
         </ActivityProvider>
+        </SelectedSiteProvider>
         </SiteProvider>
         </AuthProvider>
       </BrowserRouter>

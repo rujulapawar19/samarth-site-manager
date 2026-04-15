@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useActivity } from "@/context/ActivityContext";
 import { useSites } from "@/context/SiteContext";
+import { useSelectedSite } from "@/context/SelectedSiteContext";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DbMaterial {
@@ -37,6 +38,7 @@ export default function NewDeliveryPage() {
   const navigate = useNavigate();
   const { addActivity } = useActivity();
   const { sites } = useSites();
+  const { selectedSiteId } = useSelectedSite();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [materials, setMaterials] = useState<DbMaterial[]>([]);
@@ -45,7 +47,7 @@ export default function NewDeliveryPage() {
   const [scanning, setScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [supplier, setSupplier] = useState("");
-  const [site, setSite] = useState("");
+  const [site, setSite] = useState(selectedSiteId && selectedSiteId !== "all" ? selectedSiteId : "");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [rows, setRows] = useState<DeliveryRow[]>([
     { key: crypto.randomUUID(), materialId: "", quantity: "" },

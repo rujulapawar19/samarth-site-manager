@@ -2,17 +2,23 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { MobileNav } from "@/components/MobileNav";
 import { Outlet, useLocation, useNavigate, Navigate } from "react-router-dom";
-import { ArrowLeft, LogOut, User } from "lucide-react";
+import { ArrowLeft, LogOut, User, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth, SUPERVISOR_ROUTES } from "@/context/AuthContext";
+import { useSelectedSite } from "@/context/SelectedSiteContext";
+import { useSites } from "@/context/SiteContext";
 
 export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { selectedSiteId } = useSelectedSite();
+  const { sites } = useSites();
+  const selectedSite = selectedSiteId && selectedSiteId !== "all" ? sites.find(s => s.id === selectedSiteId) : null;
   const showBack = location.pathname !== "/dashboard";
 
   if (!user) return <Navigate to="/" replace />;
+  if (!selectedSiteId) return <Navigate to="/select-site" replace />;
 
   // Supervisor route restriction
   if (user.role === "supervisor" && !SUPERVISOR_ROUTES.includes(location.pathname)) {
@@ -48,6 +54,10 @@ export function AppLayout() {
               <p className="text-[10px] text-muted-foreground hidden sm:block">Nashik, Maharashtra</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1" onClick={() => navigate("/select-site")} title="Switch site">
+                <Building2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{selectedSite ? selectedSite.short_name : "All Sites"}</span>
+              </Button>
               <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
                 <User className="w-3.5 h-3.5" />
                 <span className="font-medium text-foreground">{user.name}</span>

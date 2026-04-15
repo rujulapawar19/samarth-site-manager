@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatINR } from "@/data/sampleData";
 import { supabase } from "@/integrations/supabase/client";
 import { useActivity } from "@/context/ActivityContext";
+import { useSelectedSite } from "@/context/SelectedSiteContext";
 import { toast } from "sonner";
 
 interface DbWorker {
@@ -17,10 +18,12 @@ interface DbWorker {
   amount_due: number;
   status: string;
   paid_at: string | null;
+  site_id: string | null;
 }
 
 export default function PaydayPage() {
   const { addActivity } = useActivity();
+  const { selectedSiteId } = useSelectedSite();
   const [workers, setWorkers] = useState<DbWorker[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,6 +34,11 @@ export default function PaydayPage() {
   };
 
   useEffect(() => { fetchWorkers(); }, []);
+
+  // Apply global site filter
+  const filteredAllWorkers = selectedSiteId && selectedSiteId !== "all"
+    ? workers.filter(w => w.site_id === selectedSiteId)
+    : workers;
 
   const markPaid = async (id: string) => {
     const worker = workers.find(w => w.id === id);
@@ -44,8 +52,8 @@ export default function PaydayPage() {
     }
   };
 
-  const pendingWorkers = workers.filter(w => w.status === "Pending");
-  const paidWorkers = workers.filter(w => w.status === "Paid");
+  const pendingWorkers = filteredAllWorkers.filter(w => w.status === "Pending");
+  const paidWorkers = filteredAllWorkers.filter(w => w.status === "Paid");
   const totalRequired = pendingWorkers.reduce((s, w) => s + w.amount_due, 0);
 
   const sendWhatsApp = (worker: DbWorker) => {

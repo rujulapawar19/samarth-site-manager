@@ -11,7 +11,7 @@ import { formatINR } from "@/data/sampleData";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSites } from "@/context/SiteContext";
-import SiteFilter from "@/components/SiteFilter";
+import { useSelectedSite } from "@/context/SelectedSiteContext";
 
 interface DbInvoice {
   id: string;
@@ -25,10 +25,10 @@ interface DbInvoice {
 
 export default function InvoicesPage() {
   const { sites } = useSites();
+  const { selectedSiteId } = useSelectedSite();
   const [invoices, setInvoices] = useState<DbInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
-  const [siteFilter, setSiteFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
   const [form, setForm] = useState({ supplier: "", description: "", amount: "", site: "", status: "Pending" as "Paid" | "Pending" });
@@ -49,9 +49,9 @@ export default function InvoicesPage() {
 
   const filtered = invoices
     .filter(i => statusFilter === "all" || i.status === statusFilter)
-    .filter(i => siteFilter === "all" || i.site_id === siteFilter);
+    .filter(i => !selectedSiteId || selectedSiteId === "all" || i.site_id === selectedSiteId);
 
-  const totalPending = invoices.filter(i => i.status === "Pending").reduce((s, i) => s + i.amount, 0);
+  const totalPending = filtered.filter(i => i.status === "Pending").reduce((s, i) => s + i.amount, 0);
 
   const handleSave = async () => {
     if (!form.supplier || !form.description || !form.amount || !form.site) {
@@ -93,7 +93,6 @@ export default function InvoicesPage() {
       </Card>
 
       <div className="flex gap-2">
-        <SiteFilter value={siteFilter} onChange={setSiteFilter} />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-32 h-9">
             <SelectValue placeholder="Status" />

@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+export type SitePhase = "Planning" | "Foundation" | "Structural" | "Finishing";
+
 export interface Site {
   id: string;
   name: string;
@@ -9,6 +11,7 @@ export interface Site {
   location: string;
   start_date: string;
   total_budget: number;
+  phase: SitePhase;
 }
 
 interface SiteContextType {
@@ -36,6 +39,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         location: s.location,
         start_date: s.start_date,
         total_budget: Number(s.total_budget),
+        phase: (s as any).phase || "Foundation",
       })));
     }
     setLoading(false);
@@ -50,7 +54,8 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       location: site.location,
       start_date: site.start_date,
       total_budget: site.total_budget,
-    });
+      phase: site.phase,
+    } as any);
     if (error) {
       toast.error("Failed to add site");
       console.error(error);

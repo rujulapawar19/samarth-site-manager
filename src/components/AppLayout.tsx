@@ -12,6 +12,9 @@ export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { selectedSiteId } = useSelectedSite();
+  const { sites } = useSites();
+  const selectedSite = selectedSiteId && selectedSiteId !== "all" ? sites.find(s => s.id === selectedSiteId) : null;
   const showBack = location.pathname !== "/dashboard";
 
   if (!user) return <Navigate to="/" replace />;

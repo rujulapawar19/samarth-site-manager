@@ -38,6 +38,7 @@ export default function NewDeliveryPage() {
   const navigate = useNavigate();
   const { addActivity } = useActivity();
   const { sites } = useSites();
+  const { selectedSiteId } = useSelectedSite();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [materials, setMaterials] = useState<DbMaterial[]>([]);

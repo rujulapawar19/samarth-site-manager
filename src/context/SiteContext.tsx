@@ -54,7 +54,8 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       location: site.location,
       start_date: site.start_date,
       total_budget: site.total_budget,
-    });
+      phase: site.phase,
+    } as any);
     if (error) {
       toast.error("Failed to add site");
       console.error(error);

@@ -18,6 +18,7 @@ export function AppLayout() {
   const showBack = location.pathname !== "/dashboard";
 
   if (!user) return <Navigate to="/" replace />;
+  if (!selectedSiteId) return <Navigate to="/select-site" replace />;
 
   // Supervisor route restriction
   if (user.role === "supervisor" && !SUPERVISOR_ROUTES.includes(location.pathname)) {

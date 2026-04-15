@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Wallet, Check, Loader2 } from "lucide-react";
+import { Plus, Wallet, Check, Loader2, Search, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { formatINR } from "@/data/sampleData";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -39,6 +40,8 @@ export default function LaborPage() {
   const [showPayday, setShowPayday] = useState(false);
   const [showAddWorker, setShowAddWorker] = useState(false);
   const [siteFilter, setSiteFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [deleteWorker, setDeleteWorker] = useState<DbWorker | null>(null);
 
   const [form, setForm] = useState({
     name: "", role: "", wageType: "daily" as "daily" | "monthly", wageRate: "", phone: "", site: "",
@@ -56,8 +59,12 @@ export default function LaborPage() {
   const dailyWorkers = workers.filter(w => w.wage_type === "daily");
   const monthlyStaff = workers.filter(w => w.wage_type === "monthly");
 
-  const filteredDaily = siteFilter === "all" ? dailyWorkers : dailyWorkers.filter(w => w.site_id === siteFilter);
-  const filteredMonthly = siteFilter === "all" ? monthlyStaff : monthlyStaff.filter(w => w.site_id === siteFilter);
+  const searchLower = search.toLowerCase();
+  const applySearch = (list: DbWorker[]) =>
+    search ? list.filter(w => w.name.toLowerCase().includes(searchLower) || w.role.toLowerCase().includes(searchLower)) : list;
+
+  const filteredDaily = applySearch(siteFilter === "all" ? dailyWorkers : dailyWorkers.filter(w => w.site_id === siteFilter));
+  const filteredMonthly = applySearch(siteFilter === "all" ? monthlyStaff : monthlyStaff.filter(w => w.site_id === siteFilter));
   const totalPending = filteredDaily.filter(w => w.status === "Pending").reduce((s, w) => s + w.amount_due, 0);
 
   const markPaid = async (id: string) => {
@@ -69,6 +76,16 @@ export default function LaborPage() {
     if (worker) {
       addActivity({ text: `${worker.name} marked paid — ${formatINR(worker.amount_due)}`, icon: "payment" });
     }
+  };
+
+  const removeWorker = async () => {
+    if (!deleteWorker) return;
+    const { error } = await supabase.from("workers").delete().eq("id", deleteWorker.id);
+    if (error) { toast.error("Failed to remove worker"); return; }
+    toast.success(`${deleteWorker.name} removed`);
+    addActivity({ text: `Worker removed — ${deleteWorker.name} (${deleteWorker.role})`, icon: "alert" });
+    setDeleteWorker(null);
+    await fetchWorkers();
   };
 
   const addWorker = async () => {
@@ -114,6 +131,7 @@ export default function LaborPage() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add New Worker</DialogTitle>
+                <DialogDescription>Fill in the details to add a new worker.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="space-y-1.5">
@@ -170,6 +188,7 @@ export default function LaborPage() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Payday Summary — This Friday</DialogTitle>
+                <DialogDescription>Review pending payments before proceeding.</DialogDescription>
               </DialogHeader>
               <div className="space-y-3 py-4">
                 <div className="text-center">
@@ -187,6 +206,17 @@ export default function LaborPage() {
             </DialogContent>
           </Dialog>
         </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by name or role..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
       <Tabs defaultValue="daily">
@@ -223,11 +253,16 @@ export default function LaborPage() {
                         </Badge>
                       </td>
                       <td className="p-3 text-center">
-                        {w.status === "Pending" && w.amount_due > 0 && (
-                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => markPaid(w.id)}>
-                            <Check className="w-3 h-3 mr-1" /> Pay
+                        <div className="flex items-center justify-center gap-1">
+                          {w.status === "Pending" && w.amount_due > 0 && (
+                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => markPaid(w.id)}>
+                              <Check className="w-3 h-3 mr-1" /> Pay
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => setDeleteWorker(w)}>
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -246,6 +281,7 @@ export default function LaborPage() {
                     <th className="text-left p-3 font-medium text-muted-foreground">Designation</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Monthly Salary</th>
                     <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
+                    <th className="text-center p-3 font-medium text-muted-foreground">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -259,6 +295,11 @@ export default function LaborPage() {
                           {s.status}
                         </Badge>
                       </td>
+                      <td className="p-3 text-center">
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => setDeleteWorker(s)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -267,6 +308,24 @@ export default function LaborPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteWorker} onOpenChange={open => !open && setDeleteWorker(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to remove this worker?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove <strong>{deleteWorker?.name}</strong> ({deleteWorker?.role}) from the system. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={removeWorker} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

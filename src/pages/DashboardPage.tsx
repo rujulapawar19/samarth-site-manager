@@ -88,7 +88,7 @@ export default function DashboardPage() {
       return;
     }
     const shortName = form.shortName || form.name.split("—").pop()?.trim() || form.name;
-    await addSite({ name: form.name, short_name: shortName, location: form.location, start_date: form.startDate, total_budget: Number(form.totalBudget) });
+    await addSite({ name: form.name, short_name: shortName, location: form.location, start_date: form.startDate, total_budget: Number(form.totalBudget), phase: "Foundation" });
     toast.success(`${form.name} added`);
     setForm({ name: "", shortName: "", location: "", startDate: "", totalBudget: "" });
     setShowAddSite(false);

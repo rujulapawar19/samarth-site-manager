@@ -39,6 +39,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         location: s.location,
         start_date: s.start_date,
         total_budget: Number(s.total_budget),
+        phase: (s as any).phase || "Foundation",
       })));
     }
     setLoading(false);

@@ -254,6 +254,7 @@ export type Database = {
           id: string
           location: string
           name: string
+          phase: string
           short_name: string
           start_date: string
           total_budget: number
@@ -264,6 +265,7 @@ export type Database = {
           id?: string
           location?: string
           name: string
+          phase?: string
           short_name: string
           start_date?: string
           total_budget?: number
@@ -274,6 +276,7 @@ export type Database = {
           id?: string
           location?: string
           name?: string
+          phase?: string
           short_name?: string
           start_date?: string
           total_budget?: number

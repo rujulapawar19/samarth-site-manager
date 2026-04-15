@@ -1,0 +1,1 @@
+ALTER TABLE public.sites ADD COLUMN phase text NOT NULL DEFAULT 'Foundation';

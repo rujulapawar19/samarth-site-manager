@@ -5,11 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { formatINR, formatINRLakhs } from "@/data/sampleData";
 import { useActivity } from "@/context/ActivityContext";
 import { useSites } from "@/context/SiteContext";
+import { useSelectedSite } from "@/context/SelectedSiteContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -33,11 +35,20 @@ interface DashStats {
 export default function DashboardPage() {
   const { activities } = useActivity();
   const { sites, addSite } = useSites();
+  const { selectedSiteId } = useSelectedSite();
   const [showAddSite, setShowAddSite] = useState(false);
   const [form, setForm] = useState({ name: "", shortName: "", location: "", startDate: "", totalBudget: "" });
   const [stats, setStats] = useState<DashStats>({ totalWorkers: 0, dailyCount: 0, monthlyCount: 0, pendingPayments: 0, lowStockCount: 0, criticalCount: 0, totalSpent: 0 });
   const [siteStats, setSiteStats] = useState<Record<string, { workers: number; lowStock: number; spent: number }>>({});
   const [loading, setLoading] = useState(true);
+
+  const filteredSites = selectedSiteId && selectedSiteId !== "all"
+    ? sites.filter(s => s.id === selectedSiteId)
+    : sites;
+
+  const selectedSite = selectedSiteId && selectedSiteId !== "all"
+    ? sites.find(s => s.id === selectedSiteId)
+    : null;
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -47,9 +58,16 @@ export default function DashboardPage() {
         supabase.from("invoices").select("id, amount, site_id"),
       ]);
 
-      const workers = workersRes.data || [];
-      const materials = materialsRes.data || [];
-      const invoices = invoicesRes.data || [];
+      let workers = workersRes.data || [];
+      let materials = materialsRes.data || [];
+      let invoices = invoicesRes.data || [];
+
+      // Apply global site filter
+      if (selectedSiteId && selectedSiteId !== "all") {
+        workers = workers.filter(w => w.site_id === selectedSiteId);
+        materials = materials.filter(m => m.site_id === selectedSiteId);
+        invoices = invoices.filter(i => i.site_id === selectedSiteId);
+      }
 
       const dailyCount = workers.filter(w => w.wage_type === "daily").length;
       const monthlyCount = workers.filter(w => w.wage_type === "monthly").length;
@@ -61,11 +79,14 @@ export default function DashboardPage() {
       setStats({ totalWorkers: workers.length, dailyCount, monthlyCount, pendingPayments, lowStockCount, criticalCount, totalSpent });
 
       const ss: Record<string, { workers: number; lowStock: number; spent: number }> = {};
-      for (const site of sites) {
+      for (const site of filteredSites) {
+        const allWorkers = workersRes.data || [];
+        const allMaterials = materialsRes.data || [];
+        const allInvoices = invoicesRes.data || [];
         ss[site.id] = {
-          workers: workers.filter(w => w.site_id === site.id).length,
-          lowStock: materials.filter(m => m.site_id === site.id && (m.status === "Low" || m.status === "Critical")).length,
-          spent: invoices.filter(i => i.site_id === site.id).reduce((s, i) => s + Number(i.amount), 0),
+          workers: allWorkers.filter(w => w.site_id === site.id).length,
+          lowStock: allMaterials.filter(m => m.site_id === site.id && (m.status === "Low" || m.status === "Critical")).length,
+          spent: allInvoices.filter(i => i.site_id === site.id).reduce((s, i) => s + Number(i.amount), 0),
         };
       }
       setSiteStats(ss);
@@ -73,7 +94,7 @@ export default function DashboardPage() {
     };
     if (sites.length > 0) fetchStats();
     else setLoading(false);
-  }, [sites]);
+  }, [sites, selectedSiteId]);
 
   const statCards = [
     { label: "Total Workers Today", value: String(stats.totalWorkers), icon: Users, change: `${stats.dailyCount} daily + ${stats.monthlyCount} staff` },
@@ -100,8 +121,18 @@ export default function DashboardPage() {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h2 className="page-header">Dashboard</h2>
-        <p className="text-sm text-muted-foreground">Overview for {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+        <p className="text-sm text-muted-foreground">
+          Overview for {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          {selectedSite && ` — ${selectedSite.short_name}`}
+        </p>
       </div>
+
+      {/* Phase badge for selected site */}
+      {selectedSite && (
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs">Phase: {selectedSite.phase}</Badge>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {statCards.map((stat) => (
@@ -159,7 +190,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {sites.map((site) => {
+        {filteredSites.map((site) => {
           const ss = siteStats[site.id] || { workers: 0, lowStock: 0, spent: 0 };
           const budget = site.total_budget;
           const budgetPct = budget > 0 ? Math.min(Math.round((ss.spent / budget) * 100), 100) : 0;
@@ -174,6 +205,7 @@ export default function DashboardPage() {
                     <MapPin className="w-3 h-3" /> {site.location}
                   </p>
                 </div>
+                <Badge variant="outline" className="text-[10px]">{site.phase}</Badge>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-muted/50 rounded-lg p-2">

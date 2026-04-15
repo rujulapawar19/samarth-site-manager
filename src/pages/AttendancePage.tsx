@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { formatINR } from "@/data/sampleData";
 import { useActivity } from "@/context/ActivityContext";
 import { useSites } from "@/context/SiteContext";
-import SiteFilter from "@/components/SiteFilter";
+import { useSelectedSite } from "@/context/SelectedSiteContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -27,7 +27,7 @@ interface AttendanceRecord {
 export default function AttendancePage() {
   const { addActivity } = useActivity();
   const { sites } = useSites();
-  const [siteFilter, setSiteFilter] = useState("all");
+  const { selectedSiteId } = useSelectedSite();
   const [workers, setWorkers] = useState<DbWorker[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +55,10 @@ export default function AttendancePage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const filteredWorkers = siteFilter === "all" ? workers : workers.filter(w => w.site_id === siteFilter);
+  // Apply global site filter
+  const filteredWorkers = selectedSiteId && selectedSiteId !== "all"
+    ? workers.filter(w => w.site_id === selectedSiteId)
+    : workers;
 
   const toggle = async (id: string) => {
     const worker = workers.find(w => w.id === id);
@@ -128,7 +131,6 @@ export default function AttendancePage() {
           <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
         </div>
         <div className="flex gap-2">
-          <SiteFilter value={siteFilter} onChange={setSiteFilter} />
           <Button onClick={markAll} className="bg-primary">
             <Check className="w-4 h-4 mr-1" /> Mark All Present
           </Button>

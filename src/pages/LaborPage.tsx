@@ -15,7 +15,8 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useActivity } from "@/context/ActivityContext";
 import { useSites } from "@/context/SiteContext";
-import SiteFilter from "@/components/SiteFilter";
+import { useSelectedSite, PHASE_ROLES } from "@/context/SelectedSiteContext";
+import type { SitePhase } from "@/context/SiteContext";
 
 interface DbWorker {
   id: string;
@@ -35,11 +36,11 @@ export default function LaborPage() {
   const navigate = useNavigate();
   const { addActivity } = useActivity();
   const { sites } = useSites();
+  const { selectedSiteId } = useSelectedSite();
   const [workers, setWorkers] = useState<DbWorker[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPayday, setShowPayday] = useState(false);
   const [showAddWorker, setShowAddWorker] = useState(false);
-  const [siteFilter, setSiteFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [deleteWorker, setDeleteWorker] = useState<DbWorker | null>(null);
 
@@ -56,15 +57,29 @@ export default function LaborPage() {
 
   useEffect(() => { fetchWorkers(); }, []);
 
-  const dailyWorkers = workers.filter(w => w.wage_type === "daily");
-  const monthlyStaff = workers.filter(w => w.wage_type === "monthly");
+  // Apply global site filter
+  const siteFilteredWorkers = selectedSiteId && selectedSiteId !== "all"
+    ? workers.filter(w => w.site_id === selectedSiteId)
+    : workers;
+
+  // Apply phase-based role filter
+  const selectedSite = selectedSiteId && selectedSiteId !== "all"
+    ? sites.find(s => s.id === selectedSiteId)
+    : null;
+  const phaseRoles = selectedSite ? PHASE_ROLES[selectedSite.phase as SitePhase] : null;
+  const phaseFilteredWorkers = phaseRoles
+    ? siteFilteredWorkers.filter(w => phaseRoles.some(r => w.role.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(w.role.toLowerCase())))
+    : siteFilteredWorkers;
+
+  const dailyWorkers = phaseFilteredWorkers.filter(w => w.wage_type === "daily");
+  const monthlyStaff = phaseFilteredWorkers.filter(w => w.wage_type === "monthly");
 
   const searchLower = search.toLowerCase();
   const applySearch = (list: DbWorker[]) =>
     search ? list.filter(w => w.name.toLowerCase().includes(searchLower) || w.role.toLowerCase().includes(searchLower)) : list;
 
-  const filteredDaily = applySearch(siteFilter === "all" ? dailyWorkers : dailyWorkers.filter(w => w.site_id === siteFilter));
-  const filteredMonthly = applySearch(siteFilter === "all" ? monthlyStaff : monthlyStaff.filter(w => w.site_id === siteFilter));
+  const filteredDaily = applySearch(dailyWorkers);
+  const filteredMonthly = applySearch(monthlyStaff);
   const totalPending = filteredDaily.filter(w => w.status === "Pending").reduce((s, w) => s + w.amount_due, 0);
 
   const markPaid = async (id: string) => {
@@ -118,10 +133,12 @@ export default function LaborPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="page-header">Labor Management</h2>
-          <p className="text-sm text-muted-foreground">Manage daily and monthly workers</p>
+          <p className="text-sm text-muted-foreground">
+            Manage daily and monthly workers
+            {selectedSite && ` — ${selectedSite.short_name} (${selectedSite.phase})`}
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <SiteFilter value={siteFilter} onChange={setSiteFilter} />
           <Dialog open={showAddWorker} onOpenChange={setShowAddWorker}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">

@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatINR } from "@/data/sampleData";
 import { Link } from "react-router-dom";
-import SiteFilter from "@/components/SiteFilter";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSelectedSite, PHASE_MATERIALS } from "@/context/SelectedSiteContext";
+import { useSites } from "@/context/SiteContext";
+import type { SitePhase } from "@/context/SiteContext";
 
 interface DbMaterial {
   id: string;
@@ -31,11 +33,16 @@ function computeStatus(qty: number, unit: string): string {
 }
 
 export default function MaterialsPage() {
-  const [siteFilter, setSiteFilter] = useState("all");
+  const { selectedSiteId } = useSelectedSite();
+  const { sites } = useSites();
   const [materials, setMaterials] = useState<DbMaterial[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+
+  const selectedSite = selectedSiteId && selectedSiteId !== "all"
+    ? sites.find(s => s.id === selectedSiteId)
+    : null;
 
   const fetchMaterials = async () => {
     const { data, error } = await supabase.from("materials").select("id, name, supplier, quantity, unit, rate, status, site_id").order("name");
@@ -68,7 +75,21 @@ export default function MaterialsPage() {
     setUpdating(null);
   };
 
-  const siteFiltered = siteFilter === "all" ? materials : materials.filter(m => m.site_id === siteFilter);
+  // Apply global site filter
+  let siteFiltered = selectedSiteId && selectedSiteId !== "all"
+    ? materials.filter(m => m.site_id === selectedSiteId)
+    : materials;
+
+  // Apply phase-based material filter
+  if (selectedSite) {
+    const phaseMats = PHASE_MATERIALS[selectedSite.phase as SitePhase];
+    if (phaseMats) {
+      siteFiltered = siteFiltered.filter(m =>
+        phaseMats.some(pm => m.name.toLowerCase().includes(pm.toLowerCase()) || pm.toLowerCase().includes(m.name.toLowerCase()))
+      );
+    }
+  }
+
   const filtered = search ? siteFiltered.filter(m => m.name.toLowerCase().includes(search.toLowerCase())) : siteFiltered;
 
   const statusClass = (status: string) => {
@@ -93,10 +114,12 @@ export default function MaterialsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="page-header">Material Inventory</h2>
-          <p className="text-sm text-muted-foreground">{filtered.length} materials tracked</p>
+          <p className="text-sm text-muted-foreground">
+            {filtered.length} materials tracked
+            {selectedSite && ` — ${selectedSite.short_name} (${selectedSite.phase})`}
+          </p>
         </div>
         <div className="flex gap-2">
-          <SiteFilter value={siteFilter} onChange={setSiteFilter} />
           <Link to="/new-delivery">
             <Button size="sm">
               <Plus className="w-4 h-4 mr-1" /> New Delivery

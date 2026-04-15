@@ -53,6 +53,10 @@ export function AppLayout() {
               <p className="text-[10px] text-muted-foreground hidden sm:block">Nashik, Maharashtra</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1" onClick={() => navigate("/select-site")} title="Switch site">
+                <Building2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{selectedSite ? selectedSite.short_name : "All Sites"}</span>
+              </Button>
               <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
                 <User className="w-3.5 h-3.5" />
                 <span className="font-medium text-foreground">{user.name}</span>

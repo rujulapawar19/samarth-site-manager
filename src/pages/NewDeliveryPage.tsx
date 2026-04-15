@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Camera, Plus, Trash2, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Camera, Plus, Trash2, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,10 +37,13 @@ export default function NewDeliveryPage() {
   const navigate = useNavigate();
   const { addActivity } = useActivity();
   const { sites } = useSites();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [materials, setMaterials] = useState<DbMaterial[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanMessage, setScanMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [supplier, setSupplier] = useState("");
   const [site, setSite] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -54,6 +57,85 @@ export default function NewDeliveryPage() {
       setLoading(false);
     });
   }, []);
+
+  // Clear scan message after 5 seconds
+  useEffect(() => {
+    if (scanMessage) {
+      const t = setTimeout(() => setScanMessage(null), 5000);
+      return () => clearTimeout(t);
+    }
+  }, [scanMessage]);
+
+  const handleChallanClick = () => {
+    // Trigger file input synchronously from click handler
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setScanning(true);
+    setScanMessage(null);
+
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke("process-challan-image", {
+        body: { image_base64: base64, mime_type: file.type || "image/jpeg" },
+      });
+
+      if (error || !data?.ok) {
+        throw new Error(data?.error || "API error");
+      }
+
+      const d = data.data;
+
+      // Auto-fill supplier
+      if (d.supplier_name) setSupplier(d.supplier_name);
+
+      // Auto-fill date
+      if (d.date) setDate(d.date);
+
+      // Try to match material by name (case-insensitive)
+      if (d.material_name) {
+        const match = materials.find(
+          (m) => m.name.toLowerCase().includes(d.material_name.toLowerCase()) ||
+                 d.material_name.toLowerCase().includes(m.name.toLowerCase())
+        );
+        if (match) {
+          setRows([{
+            key: crypto.randomUUID(),
+            materialId: match.id,
+            quantity: d.quantity ? String(d.quantity) : "",
+          }]);
+        } else {
+          // No match - just fill quantity on first row
+          if (d.quantity) {
+            setRows(prev => {
+              const updated = [...prev];
+              updated[0] = { ...updated[0], quantity: String(d.quantity) };
+              return updated;
+            });
+          }
+        }
+      }
+
+      setScanMessage({ type: "success", text: "Challan scanned! Please review and confirm." });
+    } catch (err) {
+      console.error("Challan scan error:", err);
+      setScanMessage({ type: "error", text: "Could not read challan. Please fill manually." });
+    } finally {
+      setScanning(false);
+      // Reset input so same file can be re-uploaded
+      e.target.value = "";
+    }
+  };
 
   const addRow = () => setRows(prev => [...prev, { key: crypto.randomUUID(), materialId: "", quantity: "" }]);
   const removeRow = (key: string) => setRows(prev => prev.length > 1 ? prev.filter(r => r.key !== key) : prev);
@@ -127,11 +209,47 @@ export default function NewDeliveryPage() {
         <p className="text-sm text-muted-foreground">Record a material delivery challan</p>
       </div>
 
-      <Card className="p-8 border-dashed border-2 border-primary/30 bg-primary/5 text-center cursor-pointer hover:bg-primary/10 transition-colors">
-        <Camera className="w-12 h-12 text-primary mx-auto mb-3" />
-        <p className="font-semibold text-foreground">📷 Photograph Challan</p>
-        <p className="text-sm text-muted-foreground mt-1">AI will read the challan automatically</p>
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      {/* Upload challan card */}
+      <Card
+        className="p-8 border-dashed border-2 border-primary/30 bg-primary/5 text-center cursor-pointer hover:bg-primary/10 transition-colors"
+        onClick={scanning ? undefined : handleChallanClick}
+      >
+        {scanning ? (
+          <>
+            <Loader2 className="w-12 h-12 text-primary mx-auto mb-3 animate-spin" />
+            <p className="font-semibold text-foreground">Reading challan...</p>
+            <p className="text-sm text-muted-foreground mt-1">AI is extracting delivery details</p>
+          </>
+        ) : (
+          <>
+            <Camera className="w-12 h-12 text-primary mx-auto mb-3" />
+            <p className="font-semibold text-foreground">📷 Photograph Challan</p>
+            <p className="text-sm text-muted-foreground mt-1">AI will read the challan automatically</p>
+          </>
+        )}
       </Card>
+
+      {/* Scan result message */}
+      {scanMessage && (
+        <div className={`flex items-center gap-2 p-3 rounded-md text-sm ${
+          scanMessage.type === "success"
+            ? "bg-green-500/10 text-green-600 dark:text-green-400"
+            : "bg-destructive/10 text-destructive"
+        }`}>
+          {scanMessage.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+          {scanMessage.text}
+        </div>
+      )}
 
       <form onSubmit={handleSave}>
         <Card className="p-5 space-y-4">
@@ -160,8 +278,8 @@ export default function NewDeliveryPage() {
 
           <div className="space-y-2 mt-4">
             <Label className="text-base font-semibold">Materials</Label>
-            <div className="border rounded-md overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="border rounded-md overflow-x-auto">
+              <table className="w-full text-sm" style={{ minWidth: 400 }}>
                 <thead>
                   <tr className="bg-muted/50 border-b">
                     <th className="text-left p-2 font-medium text-muted-foreground">Material *</th>

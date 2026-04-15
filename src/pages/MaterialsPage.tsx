@@ -33,6 +33,7 @@ function computeStatus(qty: number, unit: string): string {
 export default function MaterialsPage() {
   const [siteFilter, setSiteFilter] = useState("all");
   const [materials, setMaterials] = useState<DbMaterial[]>([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
 
@@ -67,7 +68,8 @@ export default function MaterialsPage() {
     setUpdating(null);
   };
 
-  const filtered = siteFilter === "all" ? materials : materials.filter(m => m.site_id === siteFilter);
+  const siteFiltered = siteFilter === "all" ? materials : materials.filter(m => m.site_id === siteFilter);
+  const filtered = search ? siteFiltered.filter(m => m.name.toLowerCase().includes(search.toLowerCase())) : siteFiltered;
 
   const statusClass = (status: string) => {
     switch (status) {

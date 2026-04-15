@@ -1,4 +1,7 @@
-import { corsHeaders } from "@supabase/supabase-js/cors";
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 function respond(ok: boolean, payload: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify({ ok, ...payload }), {

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useActivity } from "@/context/ActivityContext";
 import { useSites } from "@/context/SiteContext";
+import { useSelectedSite } from "@/context/SelectedSiteContext";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DbMaterial {

@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+export type SitePhase = "Planning" | "Foundation" | "Structural" | "Finishing";
+
 export interface Site {
   id: string;
   name: string;
@@ -9,6 +11,7 @@ export interface Site {
   location: string;
   start_date: string;
   total_budget: number;
+  phase: SitePhase;
 }
 
 interface SiteContextType {

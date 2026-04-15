@@ -80,15 +80,6 @@ export default function MaterialsPage() {
     ? materials.filter(m => m.site_id === selectedSiteId)
     : materials;
 
-  // Apply phase-based material filter
-  if (selectedSite) {
-    const phaseMats = PHASE_MATERIALS[selectedSite.phase as SitePhase];
-    if (phaseMats) {
-      siteFiltered = siteFiltered.filter(m =>
-        phaseMats.some(pm => m.name.toLowerCase().includes(pm.toLowerCase()) || pm.toLowerCase().includes(m.name.toLowerCase()))
-      );
-    }
-  }
 
   const filtered = search ? siteFiltered.filter(m => m.name.toLowerCase().includes(search.toLowerCase())) : siteFiltered;
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Plus, Minus, Loader2 } from "lucide-react";
+import { Plus, Minus, Loader2, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ function computeStatus(qty: number, unit: string): string {
 export default function MaterialsPage() {
   const [siteFilter, setSiteFilter] = useState("all");
   const [materials, setMaterials] = useState<DbMaterial[]>([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
 
@@ -66,7 +68,8 @@ export default function MaterialsPage() {
     setUpdating(null);
   };
 
-  const filtered = siteFilter === "all" ? materials : materials.filter(m => m.site_id === siteFilter);
+  const siteFiltered = siteFilter === "all" ? materials : materials.filter(m => m.site_id === siteFilter);
+  const filtered = search ? siteFiltered.filter(m => m.name.toLowerCase().includes(search.toLowerCase())) : siteFiltered;
 
   const statusClass = (status: string) => {
     switch (status) {
@@ -100,6 +103,17 @@ export default function MaterialsPage() {
             </Button>
           </Link>
         </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search materials by name..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
       <Card className="overflow-hidden">

@@ -2,9 +2,11 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { MobileNav } from "@/components/MobileNav";
 import { Outlet, useLocation, useNavigate, Navigate } from "react-router-dom";
-import { ArrowLeft, LogOut, User } from "lucide-react";
+import { ArrowLeft, LogOut, User, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth, SUPERVISOR_ROUTES } from "@/context/AuthContext";
+import { useSelectedSite } from "@/context/SelectedSiteContext";
+import { useSites } from "@/context/SiteContext";
 
 export function AppLayout() {
   const location = useLocation();

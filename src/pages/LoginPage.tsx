@@ -20,7 +20,7 @@ export default function LoginPage() {
     setError("");
     const err = login(email, password);
     if (err) setError(err);
-    else navigate("/dashboard");
+    else navigate("/select-site");
   };
 
   const fillCredentials = (em: string, pw: string) => {

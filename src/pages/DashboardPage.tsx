@@ -24,6 +24,7 @@ const activityIcons = {
 
 interface DashStats {
   totalWorkers: number;
+  presentToday: number;
   dailyCount: number;
   monthlyCount: number;
   pendingPayments: number;
@@ -38,7 +39,7 @@ export default function DashboardPage() {
   const { selectedSiteId } = useSelectedSite();
   const [showAddSite, setShowAddSite] = useState(false);
   const [form, setForm] = useState({ name: "", shortName: "", location: "", startDate: "", totalBudget: "" });
-  const [stats, setStats] = useState<DashStats>({ totalWorkers: 0, dailyCount: 0, monthlyCount: 0, pendingPayments: 0, lowStockCount: 0, criticalCount: 0, totalSpent: 0 });
+  const [stats, setStats] = useState<DashStats>({ totalWorkers: 0, presentToday: 0, dailyCount: 0, monthlyCount: 0, pendingPayments: 0, lowStockCount: 0, criticalCount: 0, totalSpent: 0 });
   const [siteStats, setSiteStats] = useState<Record<string, { workers: number; lowStock: number; spent: number }>>({});
   const [loading, setLoading] = useState(true);
 
@@ -52,31 +53,36 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const [workersRes, materialsRes, invoicesRes] = await Promise.all([
+      const today = new Date().toISOString().split("T")[0];
+      const [workersRes, materialsRes, invoicesRes, attendanceRes] = await Promise.all([
         supabase.from("workers").select("id, wage_type, status, amount_due, site_id"),
         supabase.from("materials").select("id, status, site_id"),
         supabase.from("invoices").select("id, amount, site_id"),
+        supabase.from("attendance").select("worker_id, present, site_id").eq("date", today).eq("present", true),
       ]);
 
       let workers = workersRes.data || [];
       let materials = materialsRes.data || [];
       let invoices = invoicesRes.data || [];
+      let attendance = attendanceRes.data || [];
 
       // Apply global site filter
       if (selectedSiteId && selectedSiteId !== "all") {
         workers = workers.filter(w => w.site_id === selectedSiteId);
         materials = materials.filter(m => m.site_id === selectedSiteId);
         invoices = invoices.filter(i => i.site_id === selectedSiteId);
+        attendance = attendance.filter(a => a.site_id === selectedSiteId);
       }
 
       const dailyCount = workers.filter(w => w.wage_type === "daily").length;
       const monthlyCount = workers.filter(w => w.wage_type === "monthly").length;
+      const presentToday = attendance.length;
       const pendingPayments = workers.filter(w => w.status === "Pending").reduce((s, w) => s + Number(w.amount_due), 0);
       const lowStockCount = materials.filter(m => m.status === "Low" || m.status === "Critical").length;
       const criticalCount = materials.filter(m => m.status === "Critical").length;
       const totalSpent = invoices.reduce((s, i) => s + Number(i.amount), 0);
 
-      setStats({ totalWorkers: workers.length, dailyCount, monthlyCount, pendingPayments, lowStockCount, criticalCount, totalSpent });
+      setStats({ totalWorkers: workers.length, presentToday, dailyCount, monthlyCount, pendingPayments, lowStockCount, criticalCount, totalSpent });
 
       const ss: Record<string, { workers: number; lowStock: number; spent: number }> = {};
       for (const site of filteredSites) {
@@ -97,7 +103,7 @@ export default function DashboardPage() {
   }, [sites, selectedSiteId]);
 
   const statCards = [
-    { label: "Total Workers Today", value: String(stats.totalWorkers), icon: Users, change: `${stats.dailyCount} daily + ${stats.monthlyCount} staff` },
+    { label: "Workers Present Today", value: String(stats.presentToday), icon: Users, change: `of ${stats.totalWorkers} total (${stats.dailyCount} daily + ${stats.monthlyCount} staff)` },
     { label: "Pending Payments", value: formatINR(stats.pendingPayments), icon: Clock, change: "This week" },
     { label: "Materials Low Stock", value: String(stats.lowStockCount), icon: Package, change: `${stats.criticalCount} critical` },
     { label: "Total Spent This Month", value: formatINRLakhs(stats.totalSpent), icon: IndianRupee, change: "from invoices" },

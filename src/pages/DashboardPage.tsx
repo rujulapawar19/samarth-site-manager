@@ -39,7 +39,7 @@ export default function DashboardPage() {
   const { selectedSiteId } = useSelectedSite();
   const [showAddSite, setShowAddSite] = useState(false);
   const [form, setForm] = useState({ name: "", shortName: "", location: "", startDate: "", totalBudget: "" });
-  const [stats, setStats] = useState<DashStats>({ totalWorkers: 0, dailyCount: 0, monthlyCount: 0, pendingPayments: 0, lowStockCount: 0, criticalCount: 0, totalSpent: 0 });
+  const [stats, setStats] = useState<DashStats>({ totalWorkers: 0, presentToday: 0, dailyCount: 0, monthlyCount: 0, pendingPayments: 0, lowStockCount: 0, criticalCount: 0, totalSpent: 0 });
   const [siteStats, setSiteStats] = useState<Record<string, { workers: number; lowStock: number; spent: number }>>({});
   const [loading, setLoading] = useState(true);
 

@@ -24,6 +24,7 @@ const activityIcons = {
 
 interface DashStats {
   totalWorkers: number;
+  presentToday: number;
   dailyCount: number;
   monthlyCount: number;
   pendingPayments: number;

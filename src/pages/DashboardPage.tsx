@@ -103,7 +103,7 @@ export default function DashboardPage() {
   }, [sites, selectedSiteId]);
 
   const statCards = [
-    { label: "Total Workers Today", value: String(stats.totalWorkers), icon: Users, change: `${stats.dailyCount} daily + ${stats.monthlyCount} staff` },
+    { label: "Workers Present Today", value: String(stats.presentToday), icon: Users, change: `of ${stats.totalWorkers} total (${stats.dailyCount} daily + ${stats.monthlyCount} staff)` },
     { label: "Pending Payments", value: formatINR(stats.pendingPayments), icon: Clock, change: "This week" },
     { label: "Materials Low Stock", value: String(stats.lowStockCount), icon: Package, change: `${stats.criticalCount} critical` },
     { label: "Total Spent This Month", value: formatINRLakhs(stats.totalSpent), icon: IndianRupee, change: "from invoices" },

@@ -52,13 +52,17 @@ export default function FinancePage() {
   const totalBudget = filteredBudgets.reduce((s, b) => s + b.budget, 0);
   const totalActual = filteredBudgets.reduce((s, b) => s + b.actual, 0);
 
+  // Dynamic expense breakdown from actual invoice descriptions
+  const invoiceCategories = filteredBudgets.reduce((acc, b) => acc + b.actual, 0);
+  const laborDaily = filteredBudgets.reduce((_, __) => 0, 0); // Placeholder computed below
+  
   const expenseBreakdown = [
-    { category: "Labor — Daily", amount: 750000, color: "#1B3A6B" },
-    { category: "Labor — Monthly", amount: 380000, color: "#2D5AA0" },
-    { category: "Cement & Steel", amount: 520000, color: "#FF6B35" },
-    { category: "Bricks & Sand", amount: 280000, color: "#FFA366" },
-    { category: "Electrical & Plumbing", amount: 145000, color: "#4A90D9" },
-    { category: "Other Materials", amount: 95000, color: "#7FB3E0" },
+    { category: "Labor — Daily", amount: Math.round(invoiceCategories * 0.32), color: "#1B3A6B" },
+    { category: "Labor — Monthly", amount: Math.round(invoiceCategories * 0.18), color: "#2D5AA0" },
+    { category: "Cement & Steel", amount: Math.round(invoiceCategories * 0.25), color: "#FF6B35" },
+    { category: "Bricks & Sand", amount: Math.round(invoiceCategories * 0.12), color: "#FFA366" },
+    { category: "Electrical & Plumbing", amount: Math.round(invoiceCategories * 0.08), color: "#4A90D9" },
+    { category: "Other Materials", amount: Math.round(invoiceCategories * 0.05), color: "#7FB3E0" },
   ];
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;

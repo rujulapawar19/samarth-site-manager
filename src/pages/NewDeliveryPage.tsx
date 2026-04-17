@@ -234,8 +234,8 @@ export default function NewDeliveryPage() {
         ) : (
           <>
             <Camera className="w-12 h-12 text-primary mx-auto mb-3" />
-            <p className="font-semibold text-foreground">📷 Photograph Challan</p>
-            <p className="text-sm text-muted-foreground mt-1">AI will read the challan automatically</p>
+            <p className="font-semibold text-foreground">📷 Upload Challan</p>
+            <p className="text-sm text-muted-foreground mt-1">Choose from camera or gallery — AI will read it automatically</p>
           </>
         )}
       </Card>

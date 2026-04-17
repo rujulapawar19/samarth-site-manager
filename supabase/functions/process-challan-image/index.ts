@@ -26,23 +26,10 @@ Deno.serve(async (req) => {
       return respond(false, { error: "Gemini API key not configured" }, 500);
     }
 
-    const prompt = `You are an OCR assistant for construction delivery challans (receipts) in India.
-Extract the following fields from this challan image. Return ONLY valid JSON, no markdown.
-
-{
-  "supplier_name": "supplier/vendor name",
-  "material_name": "main material delivered e.g. Cement, Sand, Steel",
-  "quantity": "numeric quantity as a number",
-  "unit": "unit like bags, tonnes, pieces, kg, brass, meters, sheets",
-  "vehicle_number": "vehicle/truck number if visible",
-  "date": "date in YYYY-MM-DD format",
-  "total_amount": "total amount as a number, 0 if not found"
-}
-
-If a field is not found, use empty string for text fields and 0 for numbers.`;
+    const prompt = `This is a construction material delivery challan. Extract: Supplier Name, Material Names with Quantity and Unit, Rate per unit, Total Amount, Date. Return as JSON: {supplierName, materials:[{materialName, quantity, unit, rate}], totalAmount, date}. If any field not visible return null.`;
 
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

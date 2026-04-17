@@ -99,33 +99,27 @@ export default function NewDeliveryPage() {
       const d = data.data;
 
       // Auto-fill supplier
-      if (d.supplier_name) setSupplier(d.supplier_name);
+      if (d.supplierName) setSupplier(d.supplierName);
 
       // Auto-fill date
       if (d.date) setDate(d.date);
 
-      // Try to match material by name (case-insensitive)
-      if (d.material_name) {
-        const match = materials.find(
-          (m) => m.name.toLowerCase().includes(d.material_name.toLowerCase()) ||
-                 d.material_name.toLowerCase().includes(m.name.toLowerCase())
-        );
-        if (match) {
-          setRows([{
+      // Map extracted materials to rows by matching against DB materials
+      if (Array.isArray(d.materials) && d.materials.length > 0) {
+        const newRows: DeliveryRow[] = [];
+        for (const item of d.materials) {
+          const itemName = (item?.materialName || "").toString().toLowerCase();
+          if (!itemName) continue;
+          const match = materials.find(
+            (m) => m.name.toLowerCase().includes(itemName) || itemName.includes(m.name.toLowerCase())
+          );
+          newRows.push({
             key: crypto.randomUUID(),
-            materialId: match.id,
-            quantity: d.quantity ? String(d.quantity) : "",
-          }]);
-        } else {
-          // No match - just fill quantity on first row
-          if (d.quantity) {
-            setRows(prev => {
-              const updated = [...prev];
-              updated[0] = { ...updated[0], quantity: String(d.quantity) };
-              return updated;
-            });
-          }
+            materialId: match?.id || "",
+            quantity: item?.quantity ? String(item.quantity) : "",
+          });
         }
+        if (newRows.length > 0) setRows(newRows);
       }
 
       setScanMessage({ type: "success", text: "Challan scanned! Please review and confirm." });
@@ -216,7 +210,6 @@ export default function NewDeliveryPage() {
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={handleFileChange}
       />
@@ -235,8 +228,8 @@ export default function NewDeliveryPage() {
         ) : (
           <>
             <Camera className="w-12 h-12 text-primary mx-auto mb-3" />
-            <p className="font-semibold text-foreground">📷 Photograph Challan</p>
-            <p className="text-sm text-muted-foreground mt-1">AI will read the challan automatically</p>
+            <p className="font-semibold text-foreground">📷 Upload Challan</p>
+            <p className="text-sm text-muted-foreground mt-1">Choose from camera or gallery — AI will read it automatically</p>
           </>
         )}
       </Card>

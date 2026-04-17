@@ -21,57 +21,65 @@ Deno.serve(async (req) => {
       return respond(false, { error: "No image provided" }, 400);
     }
 
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) {
-      return respond(false, { error: "Gemini API key not configured" }, 500);
+      return respond(false, { error: "AI gateway not configured" }, 500);
     }
 
-    const prompt = `This is a construction material delivery challan. Extract: Supplier Name, Material Names with Quantity and Unit, Rate per unit, Total Amount, Date. Return as JSON: {supplierName, materials:[{materialName, quantity, unit, rate}], totalAmount, date}. If any field not visible return null.`;
+    const prompt = `This is a construction material delivery challan. Extract: Supplier Name, Material Names with Quantity and Unit, Rate per unit, Total Amount, Date. Return ONLY valid JSON (no markdown, no code fences) in this exact shape: {"supplierName": string|null, "materials": [{"materialName": string, "quantity": number, "unit": string, "rate": number|null}], "totalAmount": number|null, "date": string|null}. If any field is not visible return null for that field.`;
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: prompt },
-                {
-                  inline_data: {
-                    mime_type: mime_type || "image/jpeg",
-                    data: image_base64,
-                  },
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 1024,
+    const dataUrl = `data:${mime_type || "image/jpeg"};base64,${image_base64}`;
+
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: dataUrl } },
+            ],
           },
-        }),
-      }
-    );
+        ],
+      }),
+    });
 
-    if (!geminiRes.ok) {
-      const err = await geminiRes.text();
-      console.error("Gemini error:", err);
+    if (!aiRes.ok) {
+      const errText = await aiRes.text();
+      console.error("AI gateway error:", aiRes.status, errText);
+      if (aiRes.status === 429) {
+        return respond(false, { error: "Rate limit reached. Please try again in a moment." }, 429);
+      }
+      if (aiRes.status === 402) {
+        return respond(false, { error: "AI credits exhausted. Please add credits to continue." }, 402);
+      }
       return respond(false, { error: "AI processing failed" });
     }
 
-    const geminiData = await geminiRes.json();
-    const rawText =
-      geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const aiData = await aiRes.json();
+    const rawText: string = aiData?.choices?.[0]?.message?.content || "";
+    console.log("AI raw response:", rawText.slice(0, 500));
 
-    // Extract JSON from response (handle markdown code blocks)
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.error("No JSON found in response:", rawText);
       return respond(false, { error: "Could not parse challan data" });
     }
 
-    const extracted = JSON.parse(jsonMatch[0]);
+    let extracted;
+    try {
+      extracted = JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      console.error("JSON parse error:", e, jsonMatch[0]);
+      return respond(false, { error: "Invalid JSON from AI" });
+    }
+
     return respond(true, { data: extracted });
   } catch (error) {
     console.error("Error:", error);

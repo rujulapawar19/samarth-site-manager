@@ -269,7 +269,10 @@ export default function NewDeliveryPage() {
       if (!mat) continue;
       const newQty = (mat.quantity || 0) + r.quantity;
       const newStatus = computeStatus(newQty, mat.unit);
-      const update: Record<string, unknown> = { quantity: newQty, status: newStatus };
+      const update: { quantity: number; status: string; rate?: number; supplier?: string } = {
+        quantity: newQty,
+        status: newStatus,
+      };
       if (r.rate > 0) update.rate = r.rate;
       if (supplier) update.supplier = supplier;
       await supabase.from("materials").update(update).eq("id", mat.id);
